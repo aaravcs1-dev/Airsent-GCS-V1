@@ -1,0 +1,610 @@
+const telemetryEls = {
+  missionTime: document.getElementById("missionTime"),
+  topVoltage: document.getElementById("topVoltage"),
+  topCurrent: document.getElementById("topCurrent"),
+  topBattery: document.getElementById("topBattery"),
+  cpuLoadTop: document.getElementById("cpuLoadTop"),
+  rollVal: document.getElementById("rollVal"),
+  pitchVal: document.getElementById("pitchVal"),
+  headingVal: document.getElementById("headingVal"),
+  altVal: document.getElementById("altVal"),
+  spdVal: document.getElementById("spdVal"),
+  m1pwm: document.getElementById("m1pwm"),
+  m2pwm: document.getElementById("m2pwm"),
+  m3pwm: document.getElementById("m3pwm"),
+  m4pwm: document.getElementById("m4pwm"),
+  m1out: document.getElementById("m1out"),
+  m2out: document.getElementById("m2out"),
+  m3out: document.getElementById("m3out"),
+  m4out: document.getElementById("m4out"),
+  horizonDisc: document.getElementById("horizonDisc"),
+  latVal: document.getElementById("latVal"),
+  lonVal: document.getElementById("lonVal"),
+  compassHeadingText: document.getElementById("compassHeadingText"),
+  miniCompassArrow: document.getElementById("miniCompassArrow"),
+  statusSelect: document.getElementById("statusSelect"),
+  flightModeSelect: document.getElementById("flightModeSelect"),
+  flightActionIndicator: document.getElementById("flightActionIndicator"),
+  confirmOverlay: document.getElementById("confirmOverlay"),
+  confirmMessage: document.getElementById("confirmMessage"),
+  confirmCancel: document.getElementById("confirmCancel"),
+  confirmOk: document.getElementById("confirmOk"),
+  missionPauseBtn: document.getElementById("missionPauseBtn"),
+  missionResetBtn: document.getElementById("missionResetBtn"),
+  eventsPauseBtn: document.getElementById("eventsPauseBtn"),
+  eventsResetBtn: document.getElementById("eventsResetBtn"),
+};
+
+let missionSeconds = 25 * 60 + 38;
+let missionTimerPaused = false;
+let eventLogPaused = false;
+let currentActiveFlightButton = null;
+let pendingConfirmAction = null;
+
+const eventLogPanel = document.querySelector(".events-panel");
+const flightButtons = Array.from(document.querySelectorAll(".flight-btn"));
+const failsafeSelects = Array.from(document.querySelectorAll(".failsafe-select"));
+
+const initialEventLog = [
+  { time: "12:45:10", text: "MODE CHANGE: POSHOLD" },
+  { time: "12:44:50", text: "GPS FIX ACQUIRED" },
+  { time: "12:44:20", text: "SYSTEM ARMED" },
+  { time: "12:44:00", text: "PRE-FLIGHT CHECKS PASSED" }
+];
+
+let eventLogData = [...initialEventLog];
+
+/* ---------------------------
+   HELPERS
+---------------------------- */
+function pad(n) {
+  return String(n).padStart(2, "0");
+}
+
+function rand(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+function updateStatusSelectClass() {
+  if (!telemetryEls.statusSelect) return;
+
+  telemetryEls.statusSelect.classList.remove(
+    "status-armed",
+    "status-prearm",
+    "status-disarmed"
+  );
+
+  const value = telemetryEls.statusSelect.value;
+  if (value === "armed") telemetryEls.statusSelect.classList.add("status-armed");
+  if (value === "prearm") telemetryEls.statusSelect.classList.add("status-prearm");
+  if (value === "disarmed") telemetryEls.statusSelect.classList.add("status-disarmed");
+}
+
+function openConfirm(message, onConfirm) {
+  pendingConfirmAction = onConfirm;
+  if (telemetryEls.confirmMessage) {
+    telemetryEls.confirmMessage.textContent = message || "Are you sure?";
+  }
+  if (telemetryEls.confirmOverlay) {
+    telemetryEls.confirmOverlay.classList.remove("hidden");
+  }
+}
+
+function closeConfirm() {
+  pendingConfirmAction = null;
+  if (telemetryEls.confirmOverlay) {
+    telemetryEls.confirmOverlay.classList.add("hidden");
+  }
+}
+
+function getCurrentClockTime() {
+  const now = new Date();
+  return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+
+function prependEvent(text) {
+  if (eventLogPaused) return;
+
+  eventLogData.unshift({
+    time: getCurrentClockTime(),
+    text: text.toUpperCase()
+  });
+
+  if (eventLogData.length > 8) {
+    eventLogData = eventLogData.slice(0, 8);
+  }
+
+  renderEventLog();
+}
+
+function renderEventLog() {
+  if (!eventLogPanel) return;
+
+  const titleBar = eventLogPanel.querySelector(".panel-title");
+  const currentItems = eventLogPanel.querySelectorAll(".event-item");
+  currentItems.forEach((item) => item.remove());
+
+  const fragment = document.createDocumentFragment();
+
+  eventLogData.forEach((entry) => {
+    const row = document.createElement("div");
+    row.className = "event-item";
+
+    const timeSpan = document.createElement("span");
+    timeSpan.textContent = entry.time;
+
+    const textSpan = document.createElement("span");
+    textSpan.textContent = entry.text;
+
+    row.appendChild(timeSpan);
+    row.appendChild(textSpan);
+    fragment.appendChild(row);
+  });
+
+  if (titleBar) {
+    titleBar.insertAdjacentElement("afterend", fragment.firstChild || document.createElement("div"));
+    // Reinsert any remaining nodes in order
+    let insertedNode = titleBar.nextElementSibling;
+    while (fragment.firstChild) {
+      if (insertedNode) {
+        insertedNode.insertAdjacentElement("afterend", fragment.firstChild);
+        insertedNode = insertedNode.nextElementSibling;
+      } else {
+        eventLogPanel.appendChild(fragment.firstChild);
+      }
+    }
+
+    // If first insert created an empty placeholder, remove it
+    if (
+      titleBar.nextElementSibling &&
+      !titleBar.nextElementSibling.classList.contains("event-item")
+    ) {
+      titleBar.nextElementSibling.remove();
+    }
+  } else {
+    eventLogData.forEach((entry) => {
+      const row = document.createElement("div");
+      row.className = "event-item";
+      row.innerHTML = `<span>${entry.time}</span><span>${entry.text}</span>`;
+      eventLogPanel.appendChild(row);
+    });
+  }
+}
+
+function setFlightCommandState(buttonEl, labelText) {
+  flightButtons.forEach((btn) => btn.classList.remove("active-command"));
+
+  if (buttonEl) {
+    buttonEl.classList.add("active-command");
+    currentActiveFlightButton = buttonEl;
+  } else {
+    currentActiveFlightButton = null;
+  }
+
+  if (telemetryEls.flightActionIndicator) {
+    if (labelText) {
+      telemetryEls.flightActionIndicator.textContent = labelText;
+      telemetryEls.flightActionIndicator.classList.remove("hidden");
+    } else {
+      telemetryEls.flightActionIndicator.textContent = "";
+      telemetryEls.flightActionIndicator.classList.add("hidden");
+    }
+  }
+
+  if (telemetryEls.flightModeSelect) {
+    telemetryEls.flightModeSelect.classList.remove("blink-red");
+    if (labelText) {
+      telemetryEls.flightModeSelect.classList.add("blink-red");
+    }
+  }
+}
+
+function normalizeCommandToMode(command) {
+  switch (command) {
+    case "LAND":
+      return "LAND";
+    case "HOLD":
+      return "LOITER";
+    case "RETURN TO BASE":
+      return "RTL";
+    case "GUIDED":
+      return "GUIDED";
+    case "MISSION START":
+      return "AUTO";
+    case "TAKEOFF":
+      return "GUIDED";
+    case "EMERGENCY STOP":
+      return null;
+    case "ARM / DISARM":
+      return null;
+    default:
+      return null;
+  }
+}
+
+function executeFlightCommand(buttonEl) {
+  const command = buttonEl.dataset.command || "COMMAND";
+  const mappedMode = normalizeCommandToMode(command);
+
+  if (command === "ARM / DISARM") {
+    if (telemetryEls.statusSelect) {
+      telemetryEls.statusSelect.value =
+        telemetryEls.statusSelect.value === "armed" ? "disarmed" : "armed";
+      updateStatusSelectClass();
+    }
+  }
+
+  if (mappedMode && telemetryEls.flightModeSelect) {
+    telemetryEls.flightModeSelect.value = mappedMode;
+  }
+
+  setFlightCommandState(buttonEl, command);
+  prependEvent(`COMMAND ACCEPTED: ${command}`);
+}
+
+function bindConfirmButtons() {
+  if (telemetryEls.confirmCancel) {
+    telemetryEls.confirmCancel.addEventListener("click", closeConfirm);
+  }
+
+  if (telemetryEls.confirmOk) {
+    telemetryEls.confirmOk.addEventListener("click", () => {
+      const action = pendingConfirmAction;
+      closeConfirm();
+      if (typeof action === "function") {
+        action();
+      }
+    });
+  }
+
+  if (telemetryEls.confirmOverlay) {
+    telemetryEls.confirmOverlay.addEventListener("click", (e) => {
+      if (e.target === telemetryEls.confirmOverlay) {
+        closeConfirm();
+      }
+    });
+  }
+}
+
+function bindTopbarControls() {
+  if (telemetryEls.statusSelect) {
+    telemetryEls.statusSelect.addEventListener("change", () => {
+      updateStatusSelectClass();
+      prependEvent(`STATUS SET: ${telemetryEls.statusSelect.options[telemetryEls.statusSelect.selectedIndex].text}`);
+    });
+    updateStatusSelectClass();
+  }
+
+  if (telemetryEls.flightModeSelect) {
+    telemetryEls.flightModeSelect.addEventListener("change", () => {
+      telemetryEls.flightModeSelect.classList.remove("blink-red");
+      if (telemetryEls.flightActionIndicator) {
+        telemetryEls.flightActionIndicator.classList.add("hidden");
+        telemetryEls.flightActionIndicator.textContent = "";
+      }
+      flightButtons.forEach((btn) => btn.classList.remove("active-command"));
+      prependEvent(`MODE CHANGE: ${telemetryEls.flightModeSelect.value}`);
+    });
+  }
+}
+
+function bindFailsafeControls() {
+  failsafeSelects.forEach((select) => {
+    select.addEventListener("change", () => {
+      const label = select.closest(".failsafe-row")?.querySelector("span")?.textContent || "FAILSAFE";
+      prependEvent(`${label} SET TO ${select.value}`);
+    });
+  });
+}
+
+function bindFlightButtons() {
+  flightButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const msg = btn.dataset.confirm || "Confirm command?";
+      openConfirm(msg, () => executeFlightCommand(btn));
+    });
+  });
+}
+
+function bindMissionButtons() {
+  if (telemetryEls.missionPauseBtn) {
+    telemetryEls.missionPauseBtn.addEventListener("click", () => {
+      openConfirm(
+        missionTimerPaused ? "Resume mission timer?" : "Pause mission timer?",
+        () => {
+          missionTimerPaused = !missionTimerPaused;
+          telemetryEls.missionPauseBtn.textContent = missionTimerPaused ? "▶" : "⏸";
+          prependEvent(missionTimerPaused ? "MISSION TIMER PAUSED" : "MISSION TIMER RESUMED");
+        }
+      );
+    });
+  }
+
+  if (telemetryEls.missionResetBtn) {
+    telemetryEls.missionResetBtn.addEventListener("click", () => {
+      openConfirm("Reset mission timer?", () => {
+        missionSeconds = 0;
+        missionTimerPaused = false;
+        if (telemetryEls.missionPauseBtn) {
+          telemetryEls.missionPauseBtn.textContent = "⏸";
+        }
+        telemetryEls.missionTime.textContent = "00:00:00";
+        prependEvent("MISSION TIMER RESET");
+      });
+    });
+  }
+}
+
+function bindEventButtons() {
+  if (telemetryEls.eventsPauseBtn) {
+    telemetryEls.eventsPauseBtn.addEventListener("click", () => {
+      openConfirm(
+        eventLogPaused ? "Resume event log updates?" : "Pause event log updates?",
+        () => {
+          eventLogPaused = !eventLogPaused;
+          telemetryEls.eventsPauseBtn.textContent = eventLogPaused ? "▶" : "⏸";
+        }
+      );
+    });
+  }
+
+  if (telemetryEls.eventsResetBtn) {
+    telemetryEls.eventsResetBtn.addEventListener("click", () => {
+      openConfirm("Clear event log?", () => {
+        eventLogData = [];
+        renderEventLog();
+      });
+    });
+  }
+}
+
+/* ---------------------------
+   LEAFLET MAP SETUP
+---------------------------- */
+const initialLat = 33.4242;
+const initialLon = -111.9281;
+
+const map = L.map("leafletMap", {
+  zoomControl: true,
+}).setView([initialLat, initialLon], 16);
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 20,
+  attribution: "&copy; OpenStreetMap contributors"
+}).addTo(map);
+
+const droneMarker = L.circleMarker([initialLat, initialLon], {
+  radius: 7,
+  color: "#7fdcff",
+  weight: 2,
+  fillColor: "#7fdcff",
+  fillOpacity: 0.9
+}).addTo(map);
+
+const homeMarker = L.circleMarker([initialLat - 0.0005, initialLon - 0.0005], {
+  radius: 6,
+  color: "#62ff9e",
+  weight: 2,
+  fillColor: "#62ff9e",
+  fillOpacity: 0.85
+}).addTo(map);
+
+const trailCoords = [[initialLat, initialLon]];
+const trailLine = L.polyline(trailCoords, {
+  color: "#f0bc59",
+  weight: 3
+}).addTo(map);
+
+/* ---------------------------
+   TELEMETRY UPDATE
+---------------------------- */
+function updateTelemetry() {
+  if (!missionTimerPaused) {
+    missionSeconds++;
+  }
+
+  const hours = Math.floor(missionSeconds / 3600);
+  const minutes = Math.floor((missionSeconds % 3600) / 60);
+  const seconds = missionSeconds % 60;
+
+  telemetryEls.missionTime.textContent = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+
+  const voltage = rand(15.6, 16.0).toFixed(1);
+  const current = rand(9.8, 11.4).toFixed(1);
+  const battery = Math.floor(rand(69, 73));
+  const roll = rand(-4, 4).toFixed(1);
+  const pitch = rand(-3, 3).toFixed(1);
+  const heading = Math.floor(rand(118, 124));
+  const altitude = rand(84.2, 87.1).toFixed(1);
+  const speed = rand(5.3, 6.4).toFixed(1);
+  const cpu = `${Math.floor(rand(20, 28))}%`;
+
+  telemetryEls.topVoltage.textContent = `${voltage}V`;
+  telemetryEls.topCurrent.textContent = `${current}A`;
+  telemetryEls.topBattery.textContent = `${battery}%`;
+  telemetryEls.cpuLoadTop.textContent = cpu;
+
+  telemetryEls.rollVal.textContent = `${roll > 0 ? "+" : ""}${roll}°`;
+  telemetryEls.pitchVal.textContent = `${pitch > 0 ? "+" : ""}${pitch}°`;
+  telemetryEls.headingVal.textContent = `${heading}°`;
+  telemetryEls.altVal.textContent = `${altitude} m`;
+  telemetryEls.spdVal.textContent = `${speed} m/s`;
+
+  if (telemetryEls.compassHeadingText) {
+    telemetryEls.compassHeadingText.textContent = `${heading}°`;
+  }
+
+  if (telemetryEls.miniCompassArrow) {
+    telemetryEls.miniCompassArrow.style.transform = `translate(-50%, -50%) rotate(${heading}deg)`;
+  }
+
+  const pwmVals = [
+    Math.floor(rand(1465, 1495)),
+    Math.floor(rand(1470, 1500)),
+    Math.floor(rand(1460, 1490)),
+    Math.floor(rand(1472, 1502)),
+  ];
+
+  const outVals = [
+    `${Math.floor(rand(39, 43))}%`,
+    `${Math.floor(rand(40, 44))}%`,
+    `${Math.floor(rand(38, 42))}%`,
+    `${Math.floor(rand(41, 45))}%`,
+  ];
+
+  telemetryEls.m1pwm.textContent = pwmVals[0];
+  telemetryEls.m2pwm.textContent = pwmVals[1];
+  telemetryEls.m3pwm.textContent = pwmVals[2];
+  telemetryEls.m4pwm.textContent = pwmVals[3];
+  telemetryEls.m1out.textContent = outVals[0];
+  telemetryEls.m2out.textContent = outVals[1];
+  telemetryEls.m3out.textContent = outVals[2];
+  telemetryEls.m4out.textContent = outVals[3];
+
+  const rollNum = parseFloat(roll);
+  const pitchNum = parseFloat(pitch);
+  telemetryEls.horizonDisc.style.transform = `rotate(${rollNum * 1.7}deg) translateY(${pitchNum * 2.6}px)`;
+
+  const newLat = initialLat + rand(-0.0008, 0.0008);
+  const newLon = initialLon + rand(-0.0008, 0.0008);
+
+  droneMarker.setLatLng([newLat, newLon]);
+
+  trailCoords.push([newLat, newLon]);
+  if (trailCoords.length > 25) {
+    trailCoords.shift();
+  }
+  trailLine.setLatLngs(trailCoords);
+
+  telemetryEls.latVal.textContent = `${newLat.toFixed(4)}°`;
+  telemetryEls.lonVal.textContent = `${newLon.toFixed(4)}°`;
+}
+
+/* ---------------------------
+   CHARTS
+---------------------------- */
+function randomSeries(length, base = 0.5, variation = 0.15) {
+  const arr = [];
+  let current = base;
+
+  for (let i = 0; i < length; i++) {
+    current += (Math.random() - 0.5) * variation;
+    current = Math.max(0.08, Math.min(0.92, current));
+    arr.push(current);
+  }
+
+  return arr;
+}
+
+function drawChart(canvasId, lines, gridX = 10, gridY = 6) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+
+  function render() {
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+
+    if (width <= 0 || height <= 0) return;
+
+    canvas.width = width * window.devicePixelRatio;
+    canvas.height = height * window.devicePixelRatio;
+    ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = "#03070c";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.strokeStyle = "rgba(255,255,255,0.08)";
+    ctx.lineWidth = 1;
+
+    for (let x = 0; x <= gridX; x++) {
+      const px = (x / gridX) * width;
+      ctx.beginPath();
+      ctx.moveTo(px, 0);
+      ctx.lineTo(px, height);
+      ctx.stroke();
+    }
+
+    for (let y = 0; y <= gridY; y++) {
+      const py = (y / gridY) * height;
+      ctx.beginPath();
+      ctx.moveTo(0, py);
+      ctx.lineTo(width, py);
+      ctx.stroke();
+    }
+
+    for (const line of lines) {
+      ctx.beginPath();
+      ctx.strokeStyle = line.color;
+      ctx.lineWidth = line.width || 2;
+
+      line.data.forEach((v, i) => {
+        const x = (i / (line.data.length - 1)) * width;
+        const y = height - v * height;
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+
+      ctx.stroke();
+    }
+  }
+
+  render();
+  window.addEventListener("resize", render);
+}
+
+drawChart("chart1", [
+  { color: "#7fdcff", data: randomSeries(24, 0.44, 0.22) },
+  { color: "#bfff88", data: randomSeries(24, 0.50, 0.25) }
+]);
+
+drawChart("chart2", [
+  { color: "#f0bc59", data: randomSeries(24, 0.60, 0.18) },
+  { color: "#7fdcff", data: randomSeries(24, 0.32, 0.10) }
+]);
+
+drawChart("chart3", [
+  { color: "#c8ff80", data: randomSeries(24, 0.62, 0.08) },
+  { color: "#7fdcff", data: randomSeries(24, 0.40, 0.08) }
+]);
+
+drawChart("chart4", [
+  { color: "#bfff88", data: randomSeries(24, 0.54, 0.12) },
+  { color: "#7fdcff", data: randomSeries(24, 0.28, 0.06) }
+]);
+
+drawChart("chart5", [
+  { color: "#ffffff", data: randomSeries(36, 0.40, 0.45), width: 1.4 }
+], 12, 5);
+
+drawChart("chart6", [
+  { color: "#bfff88", data: randomSeries(80, 0.62, 0.10) },
+  { color: "#7fdcff", data: randomSeries(80, 0.36, 0.07) },
+  { color: "#ff674e", data: randomSeries(80, 0.20, 0.12) }
+], 18, 5);
+
+drawChart("chart7", [
+  { color: "#7fdcff", data: randomSeries(80, 0.32, 0.05) },
+  { color: "#bfff88", data: randomSeries(80, 0.60, 0.12) },
+  { color: "#ffffff", data: randomSeries(80, 0.22, 0.10) }
+], 18, 5);
+
+/* ---------------------------
+   INIT
+---------------------------- */
+bindConfirmButtons();
+bindTopbarControls();
+bindFailsafeControls();
+bindFlightButtons();
+bindMissionButtons();
+bindEventButtons();
+renderEventLog();
+
+setInterval(updateTelemetry, 1000);
+updateTelemetry();

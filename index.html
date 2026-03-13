@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drone GCS V1</title>
+<link rel="stylesheet" href="styles.css">
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+</head>
+
+<body>
+
+<div class="app-shell">
+
+<header class="topbar">
+<div class="topbar-main">
+
+<div class="top-item status top-status-group">
+  <img src="logo.png" alt="Airsent logo" class="top-logo">
+
+  <span class="top-static-label">STATUS:</span>
+
+  <select id="statusSelect" class="top-select status-select">
+    <option value="armed" selected>ARMED</option>
+    <option value="prearm">PRE ARM</option>
+    <option value="disarmed">DISARMED</option>
+  </select>
+</div>
+
+<div class="top-item top-mode-group">
+  <span class="top-static-label">FLIGHT MODE:</span>
+
+  <select id="flightModeSelect" class="top-select flightmode-select">
+    <option>STABILIZE</option>
+    <option>ALTHOLD</option>
+    <option selected>POSHOLD</option>
+    <option>LOITER</option>
+    <option>AUTO</option>
+    <option>GUIDED</option>
+    <option>RTL</option>
+    <option>LAND</option>
+    <option>BRAKE</option>
+    <option>SPORT</option>
+    <option>ACRO</option>
+    <option>DRIFT</option>
+    <option>FLIP</option>
+    <option>AUTOTUNE</option>
+    <option>THROW</option>
+    <option>SMART_RTL</option>
+  </select>
+</div>
+
+<div class="top-item">
+GPS FIX: <span>RTK FIX</span> <small>(19 SATS)</small>
+</div>
+
+<div class="top-item">
+EKF: <span>HEALTHY</span>
+</div>
+
+<div class="top-item">
+BATTERY:
+<span id="topVoltage">15.8V</span>
+<small>|</small>
+<span id="topCurrent">10.2A</span>
+<small>|</small>
+<span id="topBattery">71%</span>
+</div>
+
+<div class="top-item link-box">
+LINK: <span>GOOD</span>
+</div>
+
+</div>
+</header>
+
+
+<section class="subbar">
+
+<div class="subbar-item mission-subbar-item">
+  <div class="subbar-mainline">
+    <span class="subbar-label">MISSION TIME:</span>
+    <span id="missionTime">00:25:38</span>
+  </div>
+  <div class="subbar-controls">
+    <button id="missionPauseBtn" class="subbar-btn" data-confirm="Pause mission timer?">⏸</button>
+    <button id="missionResetBtn" class="subbar-btn warning" data-confirm="Reset mission timer?">↺</button>
+  </div>
+</div>
+
+<div class="subbar-item">
+MISSION DISTANCE: <span>23.1</span>
+</div>
+
+<div class="subbar-item">
+CPU LOAD: <span id="cpuLoadTop">23%</span>
+</div>
+
+<div class="subbar-item">
+REC: <span>185MB</span>
+</div>
+
+<div class="subbar-item">
+FPS: <span>60.60</span>
+</div>
+
+</section>
+
+
+
+<main class="dashboard">
+
+
+<aside class="left-column">
+
+<section class="panel motor-panel">
+
+<div class="panel-title">
+MOTOR OUTPUTS
+</div>
+
+<div class="motor-header">
+<span>PWM</span>
+<span>OUT%</span>
+</div>
+
+<div class="motor-row">
+<span>M1 <b id="m1pwm">1472</b></span>
+<span id="m1out">41%</span>
+</div>
+
+<div class="motor-row">
+<span>M2 <b id="m2pwm">1486</b></span>
+<span id="m2out">42%</span>
+</div>
+
+<div class="motor-row">
+<span>M3 <b id="m3pwm">1468</b></span>
+<span id="m3out">40%</span>
+</div>
+
+<div class="motor-row">
+<span>M4 <b id="m4pwm">1493</b></span>
+<span id="m4out">43%</span>
+</div>
+
+</section>
+
+
+<section class="panel failsafe-panel">
+
+<div class="panel-title">
+FAILSAFE
+</div>
+
+<div class="failsafe-list">
+
+  <div class="failsafe-row">
+    <span>RC LOSS</span>
+    <select class="failsafe-select">
+      <option>RTL</option>
+      <option>LAND</option>
+      <option>HOLD</option>
+      <option>SMART RTL</option>
+    </select>
+  </div>
+
+  <div class="failsafe-row">
+    <span>LOW BATTERY</span>
+    <select class="failsafe-select">
+      <option>LAND</option>
+      <option>RTL</option>
+      <option>HOLD</option>
+      <option>SMART RTL</option>
+    </select>
+  </div>
+
+  <div class="failsafe-row">
+    <span>GCS LINK</span>
+    <select class="failsafe-select">
+      <option>HOLD</option>
+      <option>RTL</option>
+      <option>LAND</option>
+      <option>SMART RTL</option>
+    </select>
+  </div>
+
+  <div class="failsafe-row">
+    <span>GEO FENCE</span>
+    <select class="failsafe-select">
+      <option>RTL</option>
+      <option>LAND</option>
+      <option>HOLD</option>
+      <option>SMART RTL</option>
+    </select>
+  </div>
+
+</div>
+
+</section>
+
+
+
+<section class="panel flight-controls-panel">
+
+<div class="panel-title">
+FLIGHT CONTROL
+</div>
+
+<div class="flight-controls-grid">
+  <button class="flight-btn" data-command="ARM / DISARM" data-confirm="Confirm ARM / DISARM command?">⏻</button>
+  <button class="flight-btn" data-command="TAKEOFF" data-confirm="Confirm TAKEOFF command?">⬆</button>
+  <button class="flight-btn" data-command="LAND" data-confirm="Confirm LAND command?">⬇</button>
+  <button class="flight-btn" data-command="HOLD" data-confirm="Confirm HOLD command?">⏸</button>
+
+  <button class="flight-btn" data-command="RETURN TO BASE" data-confirm="Confirm RETURN TO BASE command?">⌂</button>
+  <button class="flight-btn" data-command="MISSION START" data-confirm="Confirm MISSION START command?">▶</button>
+  <button class="flight-btn" data-command="GUIDED" data-confirm="Confirm GUIDED command?">◎</button>
+  <button class="flight-btn emergency-btn" data-command="EMERGENCY STOP" data-confirm="Confirm EMERGENCY STOP?">■</button>
+</div>
+
+</section>
+
+
+<section class="panel events-panel">
+
+<div class="panel-title panel-title-with-actions">
+  <span>EVENTS LOG</span>
+  <div class="panel-action-group">
+    <button id="eventsPauseBtn" class="panel-action-btn" data-confirm="Pause event log updates?">⏸</button>
+    <button id="eventsResetBtn" class="panel-action-btn warning" data-confirm="Clear event log?">↺</button>
+  </div>
+</div>
+
+<div class="event-item">
+<span>12:45:10</span>
+<span>MODE CHANGE: POSHOLD</span>
+</div>
+
+<div class="event-item">
+<span>12:44:50</span>
+<span>GPS FIX ACQUIRED</span>
+</div>
+
+<div class="event-item">
+<span>12:44:20</span>
+<span>SYSTEM ARMED</span>
+</div>
+
+<div class="event-item">
+<span>12:44:00</span>
+<span>PRE-FLIGHT CHECKS PASSED</span>
+</div>
+
+</section>
+
+</aside>
+
+
+
+<section class="panel attitude-panel">
+
+<div class="attitude-topline">
+<div>ROLL <span id="rollVal">+2.4°</span></div>
+<div>HEADING <span id="headingVal">121°</span></div>
+<div>PITCH <span id="pitchVal">-1.2°</span></div>
+</div>
+
+
+<div class="attitude-layout">
+
+<div class="attitude-wrap">
+
+<div class="attitude-ring">
+
+<div class="attitude-bezel"></div>
+
+<div class="tick tick-top"></div>
+<div class="tick tick-right"></div>
+<div class="tick tick-bottom"></div>
+<div class="tick tick-left"></div>
+
+<div class="attitude-mark mark-30-left"></div>
+<div class="attitude-mark mark-30-right"></div>
+<div class="attitude-mark mark-15-left"></div>
+<div class="attitude-mark mark-15-right"></div>
+
+<div class="horizon-disc" id="horizonDisc">
+
+<div class="sky"></div>
+<div class="ground"></div>
+<div class="horizon-line"></div>
+<div class="pitch-ladder pitch-up-1"></div>
+<div class="pitch-ladder pitch-up-2"></div>
+<div class="pitch-ladder pitch-down-1"></div>
+<div class="pitch-ladder pitch-down-2"></div>
+<div class="crosshair"></div>
+
+</div>
+
+<div class="attitude-glow"></div>
+
+</div>
+
+</div>
+
+
+<div class="attitude-side"></div>
+
+</div>
+
+
+<div class="attitude-bottom-strip compass-strip">
+
+<div class="compass-card">
+
+<div class="modern-compass" id="miniCompass">
+  <div class="modern-compass-ring"></div>
+  <div class="modern-compass-inner"></div>
+
+  <div class="modern-tick tick-n"></div>
+  <div class="modern-tick tick-e"></div>
+  <div class="modern-tick tick-s"></div>
+  <div class="modern-tick tick-w"></div>
+
+  <div class="modern-compass-label n">N</div>
+  <div class="modern-compass-label e">E</div>
+  <div class="modern-compass-label s">S</div>
+  <div class="modern-compass-label w">W</div>
+
+  <div class="modern-compass-arrow" id="miniCompassArrow">
+    <div class="arrow-head"></div>
+    <div class="arrow-tail"></div>
+  </div>
+
+  <div class="modern-compass-center"></div>
+</div>
+
+<div class="compass-heading-text">HDG <span id="compassHeadingText">121°</span></div>
+</div>
+
+</div>
+
+</section>
+
+
+
+<section class="panel map-panel">
+
+<div class="map-topline">
+
+<div>ALT: <span id="altVal">85.8 m</span></div>
+<div>SPD: <span id="spdVal">5.9 m/s</span></div>
+<div>LT: <span>11</span></div>
+
+</div>
+
+
+<div id="leafletMap" class="map-body real-map"></div>
+
+
+<div class="map-meta">
+
+<div>MODE: <span>POSHOLD</span></div>
+<div>LAT: <span id="latVal">33.4242°</span></div>
+<div>LON: <span id="lonVal">-111.9281°</span></div>
+
+</div>
+
+
+<div class="map-footer">
+
+<div>POSITION: <span>17.20 WAYPOINT</span></div>
+<div>MSL: <span>-1.5m</span></div>
+
+</div>
+
+</section>
+
+
+
+<aside class="right-column">
+
+<section class="panel side-panel">
+
+<div class="panel-title">
+RC / TELEMETRY
+</div>
+
+<div class="side-big green-text">
+LINK GOOD
+</div>
+
+<div class="side-mini-row">
+<span>RSSI</span>
+<b>84.2</b>
+</div>
+
+</section>
+
+
+<section class="panel side-panel">
+
+<div class="panel-title">
+SENSOR STATUS
+</div>
+
+<div class="sensor-row"><span>GPS</span><b class="sensor-ok">NOMINAL</b></div>
+<div class="sensor-row"><span>LIDAR</span><b class="sensor-ok">NOMINAL</b></div>
+<div class="sensor-row"><span>OPTICAL FLOW</span><b class="sensor-ok">NOMINAL</b></div>
+<div class="sensor-row"><span>COMPASS</span><b class="sensor-ok">NOMINAL</b></div>
+<div class="sensor-row"><span>BATTERY</span><b class="sensor-ok">NOMINAL</b></div>
+<div class="sensor-row"><span>IMU</span><b class="sensor-ok">NOMINAL</b></div>
+<div class="sensor-row"><span>BAROMETER</span><b class="sensor-ok">NOMINAL</b></div>
+
+</section>
+
+</aside>
+
+
+
+<section class="mini-graphs">
+
+<div class="panel mini-graph-panel">
+<div class="panel-title">ROLL / PITCH</div>
+<canvas id="chart1"></canvas>
+</div>
+
+<div class="panel mini-graph-panel">
+<div class="panel-title">ALTITUDE / V.SPEED</div>
+<canvas id="chart2"></canvas>
+</div>
+
+<div class="panel mini-graph-panel">
+<div class="panel-title">VOLTAGE / CURRENT</div>
+<canvas id="chart3"></canvas>
+</div>
+
+<div class="panel mini-graph-panel">
+<div class="panel-title">GPS SATS / HDOP</div>
+<canvas id="chart4"></canvas>
+</div>
+
+<div class="panel mini-graph-panel">
+<div class="panel-title">VIBRATION LEVEL</div>
+<canvas id="chart5"></canvas>
+</div>
+
+</section>
+
+
+
+<section class="panel bottom-timeline">
+
+<div class="panel-title bottom-title">
+LIVE TELEMETRY TIMELINE
+</div>
+
+<div class="timeline-block">
+
+<div class="timeline-label">
+MOTOR OUTPUT AVG / BATTERY CURRENT / VOLTAGE SAG
+</div>
+
+<canvas id="chart6"></canvas>
+
+</div>
+
+<div class="timeline-block">
+
+<div class="timeline-label">
+GPS QUALITY / ALTITUDE / VIBRATION
+</div>
+
+<canvas id="chart7"></canvas>
+
+</div>
+
+</section>
+
+</main>
+</div>
+
+<div id="confirmOverlay" class="confirm-overlay hidden">
+  <div class="confirm-modal">
+    <div class="confirm-title">CONFIRM ACTION</div>
+    <div id="confirmMessage" class="confirm-message">Are you sure?</div>
+    <div class="confirm-actions">
+      <button id="confirmCancel" class="confirm-btn">CANCEL</button>
+      <button id="confirmOk" class="confirm-btn danger">CONFIRM</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>
