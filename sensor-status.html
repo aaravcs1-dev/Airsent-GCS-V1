@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drone GCS V1 | Sensor Status</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-page="sensor-status">
+
+  <div class="app-shell sensor-single-screen">
+    <header class="topbar">
+      <div class="topbar-main">
+        <div class="top-item status top-status-group">
+          <img src="logo.png" alt="Airsent logo" class="top-logo">
+          <span class="top-static-label">SYSTEM:</span>
+          <span class="sensor-page-title">VERSION 1 SENSOR STATUS</span>
+        </div>
+
+        <div class="top-item">
+          HEALTH: <span id="sensorHealthSummary">9 / 9 OK</span>
+        </div>
+
+        <div class="top-item">
+          ALERTS: <span id="sensorAlertSummary">0 ACTIVE</span>
+        </div>
+
+        <div class="top-item">
+          LAST UPDATE: <span id="sensorLastUpdate">--:--:--</span>
+        </div>
+
+        <div class="top-item top-nav-group">
+          <a href="index.html" class="nav-button">MAIN DASHBOARD</a>
+          <a href="sensor-status.html" class="nav-button active">SENSOR STATUS</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="subbar sensor-subbar">
+      <div class="subbar-item"><span class="subbar-label">PAGE</span><span>SYSTEM ARCHITECTURE</span></div>
+      <div class="subbar-item"><span class="subbar-label">FLIGHT CONTROLLER</span><span>PX4 / PIXHAWK</span></div>
+      <div class="subbar-item"><span class="subbar-label">LAYOUT</span><span>LEFT SENSORS / RIGHT COMMS</span></div>
+      <div class="subbar-item"><span class="subbar-label">POWER STATE</span><span id="powerStateTop">NOMINAL</span></div>
+      <div class="subbar-item"><span class="subbar-label">FAULT</span><span id="faultStateTop">NONE</span></div>
+    </section>
+
+    <main class="sensor-fixed-layout sensor-fixed-layout-wide">
+      <section class="panel sensor-diagram-panel-fixed">
+        <div class="panel-title panel-title-with-actions">
+          <span>SENSOR STATUS PAGE</span>
+          <div class="panel-action-group">
+            <span class="status-chip ok">TELEMETRY LINKED</span>
+            <span class="status-chip info">VERSION 1</span>
+          </div>
+        </div>
+
+        <div class="sensor-diagram-fixed sensor-diagram-wide">
+          <div class="connection-grid" aria-hidden="true">
+            <span class="connector h gps-fc"></span>
+            <span class="connector h mag-fc"></span>
+            <span class="connector h baro-fc-left"></span>
+            <span class="connector h optical-fc"></span>
+            <span class="connector h lidar-fc"></span>
+            <span class="connector h power-fc-left"></span>
+
+            <span class="connector h rc-fc-right"></span>
+            <span class="connector h telem-fc-right"></span>
+
+            <span class="connector v left-stack"></span>
+            <span class="connector v right-stack"></span>
+            <span class="connector v center-down"></span>
+          </div>
+
+          <article class="sensor-module sensor-module-wide module-gps" data-sensor-key="gps">
+            <div class="module-name">GPS Receiver</div>
+            <div class="module-meta">UART / CAN</div>
+            <div class="module-status-row">
+              <span class="module-status-badge">OK</span>
+              <span class="module-detail" data-detail-for="gps">RTK FIX | 18 SATS</span>
+            </div>
+          </article>
+
+          <article class="sensor-module sensor-module-wide module-magnetometer" data-sensor-key="magnetometer">
+            <div class="module-name">Magnetometer</div>
+            <div class="module-meta">I2C / SPI</div>
+            <div class="module-status-row">
+              <span class="module-status-badge">OK</span>
+              <span class="module-detail" data-detail-for="magnetometer">CALIBRATED | LOW INTERFERENCE</span>
+            </div>
+          </article>
+
+          <article class="sensor-module sensor-module-wide module-barometer-left" data-sensor-key="barometer">
+            <div class="module-name">Barometer</div>
+            <div class="module-meta">I2C / SPI</div>
+            <div class="module-status-row">
+              <span class="module-status-badge">OK</span>
+              <span class="module-detail" data-detail-for="barometer">1003 MBAR</span>
+            </div>
+          </article>
+
+          <article class="sensor-module sensor-module-wide module-optical-flow-left" data-sensor-key="opticalFlow">
+            <div class="module-name">Optical Flow</div>
+            <div class="module-meta">I2C / SPI</div>
+            <div class="module-status-row">
+              <span class="module-status-badge">OK</span>
+              <span class="module-detail" data-detail-for="opticalFlow">SURFACE LOCK ACTIVE</span>
+            </div>
+          </article>
+
+          <article class="sensor-module sensor-module-wide module-lidar" data-sensor-key="lidar">
+            <div class="module-name">Lidar Rangefinder</div>
+            <div class="module-meta">UART / I2C</div>
+            <div class="module-status-row">
+              <span class="module-status-badge">OK</span>
+              <span class="module-detail" data-detail-for="lidar">RANGE DATA RESTORED</span>
+            </div>
+          </article>
+
+          <article class="sensor-module sensor-module-wide module-power-left" data-sensor-key="power">
+            <div class="module-name">Power Module</div>
+            <div class="module-meta">POWER / ADC</div>
+            <div class="module-status-row">
+              <span class="module-status-badge">OK</span>
+              <span class="module-detail" data-detail-for="power">15.5V | 11.2A | 73%</span>
+            </div>
+          </article>
+
+          <article class="sensor-module module-core module-core-wide" data-sensor-key="flightController">
+            <div class="module-name">Flight Controller</div>
+            <div class="module-subtitle">PX4 / Pixhawk</div>
+            <div class="module-meta">PRIMARY AVIONICS BUS</div>
+            <div class="fc-health-grid">
+              <div><span>IMU</span><strong id="fcImuState">OK</strong></div>
+              <div><span>EKF</span><strong id="fcEkfState">OK</strong></div>
+              <div><span>GPS</span><strong id="fcGpsState">OK</strong></div>
+              <div><span>I/O</span><strong id="fcIoState">OK</strong></div>
+            </div>
+          </article>
+
+          <article class="sensor-module sensor-module-wide module-rc-right" data-sensor-key="rc">
+            <div class="module-name">RC Receiver</div>
+            <div class="module-meta">SBUS / UART</div>
+            <div class="module-status-row">
+              <span class="module-status-badge">OK</span>
+              <span class="module-detail" data-detail-for="rc">LINK GOOD | RSSI 92%</span>
+            </div>
+          </article>
+
+          <article class="sensor-module sensor-module-wide module-telemetry-right" data-sensor-key="telemetry">
+            <div class="module-name">Telemetry Link</div>
+            <div class="module-meta">UART / MAVLINK</div>
+            <div class="module-status-row">
+              <span class="module-status-badge">OK</span>
+              <span class="module-detail" data-detail-for="telemetry">GROUND LINK | 97%</span>
+            </div>
+          </article>
+
+          <article class="sensor-module sensor-module-wide module-esc-bottom" data-sensor-key="escMotors">
+            <div class="module-name">ESC / Motors</div>
+            <div class="module-meta">PWM / DSHOT</div>
+            <div class="module-status-row">
+              <span class="module-status-badge">OK</span>
+              <span class="module-detail" data-detail-for="escMotors">OUTPUT NOMINAL</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel sensor-error-log-panel-fixed">
+        <div class="panel-title">ERROR LOG</div>
+        <div id="sensorErrorLog" class="sensor-error-log">
+          <div class="sensor-log-row ok">
+            <span class="log-time">18:25:26</span>
+            <div class="log-text-group">
+              <strong>LIDAR ONLINE</strong>
+              <span>Range data restored</span>
+            </div>
+          </div>
+          <div class="sensor-log-row failure">
+            <span class="log-time">12:45:08</span>
+            <div class="log-text-group">
+              <strong>LIDAR FAILURE: NO SIGNAL</strong>
+              <span>Error Code: Timeout</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="telemetry.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

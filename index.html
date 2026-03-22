@@ -55,11 +55,11 @@
 </div>
 
 <div class="top-item">
-GPS FIX: <span>RTK FIX</span> <small>(19 SATS)</small>
+GPS FIX: <span id="gpsFixTop">RTK FIX</span> <small>(<span id="satCountTop">19</span> SATS)</small>
 </div>
 
 <div class="top-item">
-EKF: <span>HEALTHY</span>
+EKF: <span id="ekfTop">HEALTHY</span>
 </div>
 
 <div class="top-item">
@@ -72,7 +72,7 @@ BATTERY:
 </div>
 
 <div class="top-item link-box">
-LINK: <span>GOOD</span>
+LINK: <span id="linkTop">GOOD</span>
 </div>
 
 </div>
@@ -93,7 +93,7 @@ LINK: <span>GOOD</span>
 </div>
 
 <div class="subbar-item">
-MISSION DISTANCE: <span>23.1</span>
+MISSION DISTANCE: <span id="missionDistanceVal">23.1</span>
 </div>
 
 <div class="subbar-item">
@@ -355,7 +355,7 @@ FLIGHT CONTROL
 
 <div>ALT: <span id="altVal">85.8 m</span></div>
 <div>SPD: <span id="spdVal">5.9 m/s</span></div>
-<div>LT: <span>11</span></div>
+<div>LT: <span id="ltVal">11</span></div>
 
 </div>
 
@@ -365,7 +365,7 @@ FLIGHT CONTROL
 
 <div class="map-meta">
 
-<div>MODE: <span>POSHOLD</span></div>
+<div>MODE: <span id="mapModeVal">POSHOLD</span></div>
 <div>LAT: <span id="latVal">33.4242°</span></div>
 <div>LON: <span id="lonVal">-111.9281°</span></div>
 
@@ -374,8 +374,8 @@ FLIGHT CONTROL
 
 <div class="map-footer">
 
-<div>POSITION: <span>17.20 WAYPOINT</span></div>
-<div>MSL: <span>-1.5m</span></div>
+<div>POSITION: <span id="positionVal">17.20 WAYPOINT</span></div>
+<div>MSL: <span id="mslVal">-1.5m</span></div>
 
 </div>
 
@@ -391,13 +391,13 @@ FLIGHT CONTROL
 RC / TELEMETRY
 </div>
 
-<div class="side-big green-text">
+<div id="rcTelemetryState" class="side-big green-text">
 LINK GOOD
 </div>
 
 <div class="side-mini-row">
 <span>RSSI</span>
-<b>84.2</b>
+<b id="rssiVal">84.2</b>
 </div>
 
 </section>
@@ -409,13 +409,13 @@ LINK GOOD
 SENSOR STATUS
 </div>
 
-<div class="sensor-row"><span>GPS</span><b class="sensor-ok">NOMINAL</b></div>
-<div class="sensor-row"><span>LIDAR</span><b class="sensor-ok">NOMINAL</b></div>
-<div class="sensor-row"><span>OPTICAL FLOW</span><b class="sensor-ok">NOMINAL</b></div>
-<div class="sensor-row"><span>COMPASS</span><b class="sensor-ok">NOMINAL</b></div>
-<div class="sensor-row"><span>BATTERY</span><b class="sensor-ok">NOMINAL</b></div>
-<div class="sensor-row"><span>IMU</span><b class="sensor-ok">NOMINAL</b></div>
-<div class="sensor-row"><span>BAROMETER</span><b class="sensor-ok">NOMINAL</b></div>
+<div class="sensor-row"><span>GPS</span><b id="sensorGps" class="sensor-ok">NOMINAL</b></div>
+<div class="sensor-row"><span>LIDAR</span><b id="sensorLidar" class="sensor-ok">NOMINAL</b></div>
+<div class="sensor-row"><span>OPTICAL FLOW</span><b id="sensorOpticalFlow" class="sensor-ok">NOMINAL</b></div>
+<div class="sensor-row"><span>COMPASS</span><b id="sensorCompass" class="sensor-ok">NOMINAL</b></div>
+<div class="sensor-row"><span>BATTERY</span><b id="sensorBattery" class="sensor-ok">NOMINAL</b></div>
+<div class="sensor-row"><span>IMU</span><b id="sensorImu" class="sensor-ok">NOMINAL</b></div>
+<div class="sensor-row"><span>BAROMETER</span><b id="sensorBarometer" class="sensor-ok">NOMINAL</b></div>
 
 </section>
 
@@ -498,6 +498,8 @@ GPS QUALITY / ALTITUDE / VIBRATION
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="script.js"></script>
+<script src="telemetry.js"></script>
+
 
 </body>
 </html>
