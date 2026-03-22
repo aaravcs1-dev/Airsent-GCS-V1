@@ -121,7 +121,7 @@
         <div class="panel-title panel-title-with-actions">
           <span>SENSOR STATUS PAGE</span>
           <div class="panel-action-group">
-            <span class="status-chip ok">TELEMETRY LINKED</span>
+            <span class="status-chip ok" id="telemetryLinkChip">TELEMETRY LINKED</span>
             <span class="status-chip info">VERSION 1</span>
           </div>
         </div>
@@ -262,5 +262,102 @@
 
   <script src="telemetry.js"></script>
   <script src="script.js"></script>
+
+  <script>
+    const airsentMode = localStorage.getItem("airsentMode") || "demo";
+
+    const actualDisconnectedSensorState = {
+      gps: { status: "OFFLINE", detail: "NO GPS LOCK | 0 SATS" },
+      magnetometer: { status: "OFFLINE", detail: "NO DATA" },
+      barometer: { status: "OFFLINE", detail: "NO DATA" },
+      opticalFlow: { status: "OFFLINE", detail: "NO SURFACE LOCK" },
+      lidar: { status: "OFFLINE", detail: "NO RANGE DATA" },
+      power: { status: "OFFLINE", detail: "0.0V | 0.0A | 0%" },
+      rc: { status: "OFFLINE", detail: "NO SIGNAL | RSSI 0%" },
+      telemetry: { status: "OFFLINE", detail: "LINK DOWN | 0%" },
+      escMotors: { status: "OFFLINE", detail: "NO OUTPUT DATA" }
+    };
+
+    function updateBadge(el, text, offline = false) {
+      if (!el) return;
+      el.textContent = text;
+      el.classList.remove("ok");
+      if (offline) {
+        el.style.color = "#ff6b6b";
+        el.style.borderColor = "rgba(255, 107, 107, 0.35)";
+        el.style.background = "rgba(255, 107, 107, 0.08)";
+      } else {
+        el.style.color = "";
+        el.style.borderColor = "";
+        el.style.background = "";
+      }
+    }
+
+    function setSensorModuleState(sensorKey, statusText, detailText) {
+      const module = document.querySelector(`[data-sensor-key="${sensorKey}"]`);
+      if (!module) return;
+
+      const badge = module.querySelector(".module-status-badge");
+      const detail = module.querySelector(".module-detail");
+
+      updateBadge(badge, statusText, statusText !== "OK");
+
+      if (detail) {
+        detail.textContent = detailText;
+      }
+    }
+
+    function setActualDisconnectedView() {
+      document.getElementById("sensorHealthSummary").textContent = "0 / 9 OK";
+      document.getElementById("sensorAlertSummary").textContent = "9 ACTIVE";
+      document.getElementById("sensorLastUpdate").textContent = "--:--:--";
+      document.getElementById("powerStateTop").textContent = "OFFLINE";
+      document.getElementById("faultStateTop").textContent = "NO TELEMETRY";
+
+      const telemetryChip = document.getElementById("telemetryLinkChip");
+      if (telemetryChip) {
+        telemetryChip.textContent = "NO TELEMETRY";
+        telemetryChip.classList.remove("ok");
+        telemetryChip.style.color = "#ff6b6b";
+        telemetryChip.style.borderColor = "rgba(255, 107, 107, 0.35)";
+        telemetryChip.style.background = "rgba(255, 107, 107, 0.08)";
+      }
+
+      Object.entries(actualDisconnectedSensorState).forEach(([key, value]) => {
+        setSensorModuleState(key, value.status, value.detail);
+      });
+
+      document.getElementById("fcImuState").textContent = "OFFLINE";
+      document.getElementById("fcEkfState").textContent = "OFFLINE";
+      document.getElementById("fcGpsState").textContent = "OFFLINE";
+      document.getElementById("fcIoState").textContent = "OFFLINE";
+
+      const errorLog = document.getElementById("sensorErrorLog");
+      if (errorLog) {
+        errorLog.innerHTML = `
+          <div class="sensor-log-row failure">
+            <span class="log-time">--:--:--</span>
+            <div class="log-text-group">
+              <strong>NO TELEMETRY LINK</strong>
+              <span>Waiting for drone connection</span>
+            </div>
+          </div>
+          <div class="sensor-log-row failure">
+            <span class="log-time">--:--:--</span>
+            <div class="log-text-group">
+              <strong>SENSORS OFFLINE</strong>
+              <span>No live data available in actual mode</span>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      if (airsentMode === "actual") {
+        setActualDisconnectedView();
+      }
+    });
+  </script>
 </body>
 </html>
