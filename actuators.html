@@ -5,13 +5,90 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Airsent GCS V1 - Actuator Outputs</title>
   <link rel="stylesheet" href="styles.css" />
+
+  <style>
+    .topbar,
+    .topbar-main,
+    .top-item,
+    .top-status-group {
+      overflow: visible !important;
+    }
+
+    .logo-dropdown {
+      position: relative;
+      display: inline-block;
+      margin-right: 12px;
+      z-index: 10000;
+    }
+
+    .logo-dropdown-btn {
+      background: transparent;
+      border: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .logo-dropdown-btn img {
+      display: block;
+    }
+
+    .logo-dropdown-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      min-width: 220px;
+      background: #07111f;
+      border: 1px solid rgba(0,255,170,0.25);
+      box-shadow: 0 0 12px rgba(0, 255, 170, 0.12);
+      border-radius: 8px;
+      overflow: hidden;
+      z-index: 10001;
+    }
+
+    .logo-dropdown-menu a {
+      display: block;
+      padding: 12px 14px;
+      color: #d7e6f5;
+      text-decoration: none;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      background: #07111f;
+    }
+
+    .logo-dropdown-menu a:hover {
+      background: #0d1b2d;
+      color: #7fffd4;
+    }
+
+    .logo-dropdown:hover .logo-dropdown-menu,
+    .logo-dropdown:focus-within .logo-dropdown-menu {
+      display: block;
+    }
+  </style>
 </head>
-<body>
+<body data-page="actuators">
   <div class="app-shell">
     <header class="topbar">
       <div class="topbar-main">
         <div class="top-item status top-status-group">
-          <img src="logo.png" alt="Airsent logo" class="top-logo" />
+          <div class="logo-dropdown">
+            <button class="logo-dropdown-btn" type="button" aria-label="Open navigation menu">
+              <img src="logo.png" alt="Airsent logo" class="top-logo" />
+            </button>
+            <div class="logo-dropdown-menu">
+              <a href="index.html">MAIN DASHBOARD</a>
+              <a href="sensor-status.html">SENSOR STATUS</a>
+              <a href="telemetry.html">TELEMETRY</a>
+              <a href="gps.html">GPS PAGE</a>
+              <a href="actuators.html">ACTUATORS</a>
+            </div>
+          </div>
+
           <span class="top-static-label">STATUS:</span>
           <select id="statusSelect" class="top-select status-select">
             <option value="armed" selected>ARMED</option>
@@ -103,7 +180,6 @@
     </section>
 
     <main class="actuator-page">
-
       <section class="panel actuator-summary-panel">
         <div class="panel-title">ACTUATOR OUTPUTS</div>
 
@@ -374,8 +450,14 @@
       document.getElementById("nodeM4")
     ];
 
+    const statusSelect = document.getElementById("statusSelect");
+    const flightModeSelect = document.getElementById("flightModeSelect");
+    const testButtons = document.querySelectorAll(".test-btn");
+
     let missionSeconds = 25 * 60 + 38;
-    let flightMode = "POSHOLD";
+    let flightMode = flightModeSelect ? flightModeSelect.value : "POSHOLD";
+    let manualTestMotor = null;
+    let manualTestTicksRemaining = 0;
 
     function pad(n) {
       return String(n).padStart(2, "0");
@@ -397,79 +479,95 @@
       missionTimeEl.textContent = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
     }
 
-function applyMotorFaultState(pwm, outputs, average, spread) {
-  let failsafe = "NORMAL";
-  let status = "NO WARNINGS";
-  let oscillation = "LOW";
+    function applyMotorFaultState(pwm, outputs, average, spread) {
+      let failsafe = "NORMAL";
+      let status = "NO WARNINGS";
+      let oscillation = "LOW";
 
-  if (spread >= 8) {
-    status = "OUTPUT IMBALANCE";
-    oscillation = "MED";
-  }
+      if (spread >= 8) {
+        status = "OUTPUT IMBALANCE";
+        oscillation = "MED";
+      }
 
-  if (spread >= 12) {
-    failsafe = "WATCH";
-    status = "HIGH SPREAD";
-    oscillation = "HIGH";
-  }
+      if (spread >= 12) {
+        failsafe = "WATCH";
+        status = "HIGH SPREAD";
+        oscillation = "HIGH";
+      }
 
-  let motorFaultDetected = false;
+      let motorFaultDetected = false;
 
-  pwm.forEach((value, i) => {
-    const card = motorCards[i];
-    const node = motorNodes[i];
-    const output = outputs[i];
+      pwm.forEach((value, i) => {
+        const card = motorCards[i];
+        const node = motorNodes[i];
+        const output = outputs[i];
 
-    card.classList.remove("warn-card", "hot-card", "motor-fault");
-    node.classList.remove("motor-fault");
+        card.classList.remove("warn-card", "hot-card", "motor-fault");
+        node.classList.remove("motor-fault");
 
-    if (output >= average + 4) {
-      card.classList.add("warn-card");
+        if (output >= average + 4) {
+          card.classList.add("warn-card");
+        }
+
+        if (output >= average + 7) {
+          card.classList.add("hot-card");
+        }
+
+        const faultDetected =
+          output > 85 ||
+          value < 1050 ||
+          value > 1950;
+
+        if (faultDetected) {
+          motorFaultDetected = true;
+          card.classList.add("motor-fault");
+          node.classList.add("motor-fault");
+        }
+      });
+
+      if (motorFaultDetected) {
+        failsafe = "MOTOR";
+        status = "MOTOR FAULT";
+        oscillation = "HIGH";
+      }
+
+      failsafeStateTop.textContent = failsafe;
+      summaryFailsafe.textContent = failsafe;
+      diagOscillation.textContent = oscillation;
+      diagStatus.textContent = status;
     }
 
-    if (output >= average + 7) {
-      card.classList.add("hot-card");
+    function applyStatusClass() {
+      if (!statusSelect) return;
+      statusSelect.classList.remove("status-armed", "status-prearm", "status-disarmed");
+      if (statusSelect.value === "armed") statusSelect.classList.add("status-armed");
+      if (statusSelect.value === "prearm") statusSelect.classList.add("status-prearm");
+      if (statusSelect.value === "disarmed") statusSelect.classList.add("status-disarmed");
     }
-
-    const faultDetected =
-      output > 85 ||
-      value < 1050 ||
-      value > 1950;
-
-    if (faultDetected) {
-      motorFaultDetected = true;
-      card.classList.add("motor-fault");
-      node.classList.add("motor-fault");
-    }
-  });
-
-  if (motorFaultDetected) {
-    failsafe = "MOTOR";
-    status = "MOTOR FAULT";
-    oscillation = "HIGH";
-  }
-
-  failsafeStateTop.textContent = failsafe;
-  summaryFailsafe.textContent = failsafe;
-  diagOscillation.textContent = oscillation;
-  diagStatus.textContent = status;
-}
 
     function updateActuatorPage() {
       updateMissionTime();
 
-      const pwm = [
+      flightMode = flightModeSelect ? flightModeSelect.value : flightMode;
+
+      let pwm = [
         Math.floor(rand(1295, 1360)),
         Math.floor(rand(1288, 1350)),
         Math.floor(rand(1305, 1375)),
         Math.floor(rand(1298, 1365))
       ];
-      pwm[1] = 1965;
 
       const forceFault = Math.random() > 0.94;
       if (forceFault) {
         const faultIndex = Math.floor(rand(0, 4));
         pwm[faultIndex] = Math.floor(rand(1910, 1985));
+      }
+
+      if (manualTestMotor !== null && manualTestTicksRemaining > 0) {
+        pwm[manualTestMotor] = Math.floor(rand(1760, 1880));
+        manualTestTicksRemaining--;
+      } else {
+        manualTestMotor = null;
       }
 
       const outputs = pwm.map(pwmToPercent);
@@ -509,6 +607,7 @@ function applyMotorFaultState(pwm, outputs, average, spread) {
         barEls[i].style.width = `${outputs[i]}%`;
       });
 
+      applyStatusClass();
       applyMotorFaultState(pwm, outputs, average, spread);
     }
 
@@ -580,6 +679,30 @@ function applyMotorFaultState(pwm, outputs, average, spread) {
       render();
       window.addEventListener("resize", render);
     }
+
+    if (flightModeSelect) {
+      flightModeSelect.addEventListener("change", () => {
+        summaryMode.textContent = flightModeSelect.value;
+      });
+    }
+
+    if (statusSelect) {
+      statusSelect.addEventListener("change", applyStatusClass);
+      applyStatusClass();
+    }
+
+    testButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const motor = btn.dataset.motor;
+        if (motor === "all-stop") {
+          manualTestMotor = null;
+          manualTestTicksRemaining = 0;
+          return;
+        }
+        manualTestMotor = Number(motor) - 1;
+        manualTestTicksRemaining = 5;
+      });
+    });
 
     drawChart("motorSpark1", [{ color: "#8df7a7", data: randomSeries(28, 0.62, 0.08), width: 2 }], 8, 4);
     drawChart("motorSpark2", [{ color: "#8df7a7", data: randomSeries(28, 0.56, 0.08), width: 2 }], 8, 4);
