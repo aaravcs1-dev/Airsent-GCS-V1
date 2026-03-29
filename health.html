@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Airsent — System Health</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg0: #060c12;
+  --bg1: #0a131c;
+  --bg2: #0e1a26;
+  --line: rgba(255,255,255,.06);
+  --green: #4ade80;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --blue: #60a5fa;
+  --muted: #4b6275;
+  --text: #e2eaf0;
+  --text2: #7a95a8;
+}
+
+body {
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg0);
+  color: var(--text);
+  font-family: 'DM Sans', Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Nav ───────────────────────────────────────────────── */
+.logo-dropdown { position:relative; display:inline-block; }
+.logo-dropdown-btn { background:transparent; border:none; padding:0; display:flex; align-items:center; cursor:pointer; }
+.logo-dropdown-menu {
+  display:none; position:absolute; top:calc(100% + 6px); left:0;
+  min-width:210px; background:#0a131c;
+  border:1px solid rgba(255,255,255,.08); border-radius:8px; overflow:hidden; z-index:9999;
+  box-shadow:0 16px 48px rgba(0,0,0,.6);
+}
+.logo-dropdown-menu a { display:block; padding:10px 14px; color:#c8dce8; text-decoration:none; font-size:12px; }
+.logo-dropdown-menu a:hover { background:rgba(255,255,255,.05); color:#fff; }
+.logo-dropdown:hover .logo-dropdown-menu, .logo-dropdown:focus-within .logo-dropdown-menu { display:block; }
+
+/* ── Top bar ───────────────────────────────────────────── */
+.topbar {
+  flex-shrink:0; height:44px;
+  background:var(--bg1); border-bottom:1px solid var(--line);
+  display:flex; align-items:center; padding:0 14px; gap:6px;
+}
+.t-div { width:1px; height:18px; background:var(--line); margin:0 4px; }
+.t-lbl { font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); }
+.t-val { font-size:11px; font-weight:700; font-family:'DM Mono',monospace; }
+.t-val.g { color:var(--green); }
+.t-val.a { color:var(--amber); }
+.t-val.r { color:var(--red); }
+.t-val.b { color:var(--blue); }
+.t-right { margin-left:auto; display:flex; align-items:center; gap:6px; }
+
+/* ── Body ──────────────────────────────────────────────── */
+.body {
+  flex:1; min-height:0;
+  display:grid;
+  grid-template-columns:1fr 320px;
+  grid-template-rows:1fr 130px;
+  gap:1px; background:var(--line);
+  overflow:hidden;
+}
+
+/* ── Diagram canvas area ───────────────────────────────── */
+.diagram-area {
+  grid-row:1; grid-column:1;
+  background:var(--bg0);
+  position:relative;
+  overflow:hidden;
+}
+
+/* SVG lines layer */
+.lines-svg {
+  position:absolute;
+  inset:0;
+  width:100%; height:100%;
+  pointer-events:none;
+  z-index:1;
+}
+
+/* Nodes */
+.nodes {
+  position:absolute;
+  inset:0;
+  z-index:2;
+}
+
+.node {
+  position:absolute;
+  background:var(--bg1);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:6px;
+  padding:8px 10px;
+  min-width:130px;
+  transition:border-color .3s, box-shadow .3s;
+  cursor:default;
+}
+.node::before {
+  content:'';
+  position:absolute;
+  top:0; left:0; right:0; height:2px;
+  border-radius:6px 6px 0 0;
+  background:var(--muted); opacity:.4;
+  transition:background .3s, opacity .3s;
+}
+.node.ok::before    { background:var(--green); opacity:1; }
+.node.warn::before  { background:var(--amber); opacity:1; }
+.node.fault::before { background:var(--red);   opacity:1; }
+.node.ok   { border-color:rgba(74,222,128,.2); box-shadow:0 0 0 0 rgba(74,222,128,0); }
+.node.warn { border-color:rgba(251,191,36,.2); }
+.node.fault{ border-color:rgba(248,113,113,.2); box-shadow:0 0 12px rgba(248,113,113,.12); }
+
+/* Flight controller — center hero node */
+.node.fc {
+  min-width:160px;
+  background:linear-gradient(135deg, #0d1e2e, #0a1520);
+  border-color:rgba(96,165,250,.25);
+  box-shadow:0 0 24px rgba(96,165,250,.08);
+}
+.node.fc::before { background:var(--blue); opacity:1; }
+
+.node-name {
+  font-size:10px; font-weight:700; letter-spacing:.8px;
+  text-transform:uppercase; color:var(--text); line-height:1;
+}
+.node-bus {
+  font-size:8px; color:var(--muted); letter-spacing:.4px;
+  margin-top:2px; margin-bottom:6px;
+}
+.node-detail {
+  font-size:10px; font-family:'DM Mono',monospace;
+  color:var(--text2); line-height:1.3;
+}
+.node-chip {
+  display:inline-block;
+  font-size:8px; font-weight:700; letter-spacing:.8px;
+  text-transform:uppercase; padding:1px 6px;
+  border-radius:10px; border:1px solid;
+  margin-top:4px;
+}
+.chip-ok    { color:var(--green); border-color:rgba(74,222,128,.35); background:rgba(74,222,128,.08); }
+.chip-warn  { color:var(--amber); border-color:rgba(251,191,36,.35);  background:rgba(251,191,36,.08); }
+.chip-fault { color:var(--red);   border-color:rgba(248,113,113,.35); background:rgba(248,113,113,.08); }
+.chip-off   { color:var(--muted); border-color:rgba(75,98,117,.2); }
+
+/* FC internal grid */
+.fc-grid {
+  display:grid; grid-template-columns:1fr 1fr;
+  gap:3px; margin-top:6px;
+}
+.fc-cell {
+  background:rgba(0,0,0,.25); border-radius:3px;
+  padding:3px 6px;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:6px;
+}
+.fc-cell-label { font-size:8px; color:var(--muted); letter-spacing:.5px; }
+.fc-cell-val   { font-size:9px; font-weight:700; font-family:'DM Mono',monospace; }
+.fc-cell-val.g { color:var(--green); }
+.fc-cell-val.a { color:var(--amber); }
+.fc-cell-val.r { color:var(--red); }
+.fc-cell-val.b { color:var(--blue); }
+
+/* ── Right panel ────────────────────────────────────────── */
+.right-panel {
+  grid-row:1; grid-column:2;
+  background:var(--bg0);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+.right-head {
+  padding:10px 14px 8px; border-bottom:1px solid var(--line);
+  font-size:10px; font-weight:700; letter-spacing:1.5px;
+  text-transform:uppercase; color:var(--text); flex-shrink:0;
+}
+
+.right-section-title {
+  padding:6px 14px 4px;
+  font-size:8px; letter-spacing:1.5px; text-transform:uppercase;
+  color:var(--muted); border-bottom:1px solid var(--line);
+  flex-shrink:0;
+}
+
+.right-rows { overflow-y:auto; flex:1; scrollbar-width:none; }
+.right-rows::-webkit-scrollbar { display:none; }
+
+.right-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:7px 14px; border-bottom:1px solid var(--line); gap:8px;
+}
+.right-row-name { font-size:11px; color:var(--text2); }
+.right-row-val  { font-size:12px; font-family:'DM Mono',monospace; font-weight:700; color:var(--text); }
+.right-row-val.g { color:var(--green); }
+.right-row-val.a { color:var(--amber); }
+.right-row-val.r { color:var(--red); }
+.right-row-val.b { color:var(--blue); }
+
+/* ── Log bar (bottom) ───────────────────────────────────── */
+.log-bar {
+  grid-row:2; grid-column:1 / 3;
+  background:var(--bg1); border-top:1px solid var(--line);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.log-head {
+  display:flex; align-items:center; gap:12px;
+  padding:5px 14px; border-bottom:1px solid var(--line); flex-shrink:0;
+}
+.log-head-title { font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); font-weight:700; }
+.log-errs { font-size:9px; color:var(--red); font-family:'DM Mono',monospace; }
+.log-rows {
+  flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--line) transparent;
+  display:flex; flex-direction:column-reverse;
+}
+.log-rows::-webkit-scrollbar { width:3px; }
+.log-rows::-webkit-scrollbar-thumb { background:var(--bg2); }
+.log-row {
+  display:flex; align-items:center; gap:12px;
+  padding:3px 14px; border-bottom:1px solid rgba(255,255,255,.03); font-size:11px;
+}
+.log-t { color:var(--muted); font-family:'DM Mono',monospace; font-size:10px; flex-shrink:0; }
+.log-c { font-size:8px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; width:44px; flex-shrink:0; }
+.log-c.ok    { color:var(--green); }
+.log-c.warn  { color:var(--amber); }
+.log-c.fault { color:var(--red); }
+.log-c.info  { color:var(--blue); }
+.log-m { color:var(--text2); font-size:11px; }
+
+/* ── Animated wire pulse ────────────────────────────────── */
+@keyframes dash-flow {
+  to { stroke-dashoffset: -20; }
+}
+.wire-active {
+  animation: dash-flow .5s linear infinite;
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo-dropdown">
+    <button class="logo-dropdown-btn"><img src="logo.png" style="height:24px;" alt="Airsent"></button>
+    <div class="logo-dropdown-menu">
+      <a href="dashboard.html">Main Dashboard</a>
+      <a href="mission.html">Mission Planner</a>
+      <a href="preflight.html">Pre-Flight Checklist</a>
+      <a href="parameters.html">Parameters</a>
+      <a href="logs.html">Flight Logs</a>
+      <a href="launch.html">Launch Sequencer</a>
+      <a href="health.html">System Health</a>
+      <a href="sensor-status.html">Sensor Status</a>
+      <a href="actuators.html">Actuators</a>
+    </div>
+  </div>
+  <div class="t-div"></div>
+  <span style="font-size:9px;letter-spacing:3px;font-weight:700;color:var(--blue);text-transform:uppercase;">System Health</span>
+  <div class="t-div"></div>
+  <span class="t-lbl">Status</span>&nbsp;<span class="t-val g" id="hStatus">--</span>
+  <div class="t-div"></div>
+  <span class="t-lbl">Health</span>&nbsp;<span class="t-val g" id="hHealth">--</span>
+  <div class="t-div"></div>
+  <span class="t-lbl">EKF</span>&nbsp;<span class="t-val g" id="hEkf">--</span>
+  <div class="t-div"></div>
+  <span class="t-lbl">Mode</span>&nbsp;<span class="t-val b" id="hMode">--</span>
+  <div class="t-div"></div>
+  <span class="t-lbl">Armed</span>&nbsp;<span class="t-val a" id="hArmed">--</span>
+  <div class="t-right">
+    <span class="t-lbl">Updated</span>&nbsp;<span class="t-val b" id="hUpd">--:--:--</span>
+    <div class="t-div"></div>
+    <span class="t-val" style="color:var(--muted)" id="hClock">--:--:--</span>
+  </div>
+</div>
+
+<!-- BODY -->
+<div class="body">
+
+  <!-- DIAGRAM AREA -->
+  <div class="diagram-area" id="diagramArea">
+
+    <!-- SVG wire layer — drawn by JS -->
+    <svg class="lines-svg" id="wiresSvg"></svg>
+
+    <!-- Nodes layer -->
+    <div class="nodes" id="nodesLayer">
+
+      <!-- LEFT COLUMN: Sensors feeding FC -->
+      <div class="node" id="node-gps" style="left:3%;top:4%">
+        <div class="node-name">GPS Receiver</div>
+        <div class="node-bus">UART / CAN</div>
+        <div class="node-detail" id="nd-gps">-- SATS · --</div>
+        <span class="node-chip chip-off" id="nc-gps">OFFLINE</span>
+      </div>
+
+      <div class="node" id="node-mag" style="left:3%;top:22%">
+        <div class="node-name">Magnetometer</div>
+        <div class="node-bus">I2C · IST8310</div>
+        <div class="node-detail" id="nd-mag">-- HDG · --</div>
+        <span class="node-chip chip-off" id="nc-mag">OFFLINE</span>
+      </div>
+
+      <div class="node" id="node-baro" style="left:3%;top:40%">
+        <div class="node-name">Barometer</div>
+        <div class="node-bus">I2C / SPI · MS5611</div>
+        <div class="node-detail" id="nd-baro">-- m AGL</div>
+        <span class="node-chip chip-off" id="nc-baro">OFFLINE</span>
+      </div>
+
+      <div class="node" id="node-flow" style="left:3%;top:58%">
+        <div class="node-name">Optical Flow</div>
+        <div class="node-bus">SPI · PMW3901</div>
+        <div class="node-detail" id="nd-flow">Quality --</div>
+        <span class="node-chip chip-off" id="nc-flow">OFFLINE</span>
+      </div>
+
+      <div class="node" id="node-lidar" style="left:3%;top:76%">
+        <div class="node-name">Lidar Rangefinder</div>
+        <div class="node-bus">UART · TF-Mini</div>
+        <div class="node-detail" id="nd-lidar">-- m range</div>
+        <span class="node-chip chip-off" id="nc-lidar">OFFLINE</span>
+      </div>
+
+      <!-- CENTER: Flight Controller -->
+      <div class="node fc" id="node-fc" style="left:50%;top:50%;transform:translate(-50%,-50%)">
+        <div class="node-name" style="color:var(--blue)">Flight Controller</div>
+        <div class="node-bus" style="color:rgba(96,165,250,.5)">Pixhawk · ArduPilot · MAVLink</div>
+        <div class="fc-grid">
+          <div class="fc-cell"><span class="fc-cell-label">IMU</span><span class="fc-cell-val g" id="fc-imu">--</span></div>
+          <div class="fc-cell"><span class="fc-cell-label">EKF</span><span class="fc-cell-val g" id="fc-ekf">--</span></div>
+          <div class="fc-cell"><span class="fc-cell-label">GPS</span><span class="fc-cell-val g" id="fc-gps">--</span></div>
+          <div class="fc-cell"><span class="fc-cell-label">I/O</span><span class="fc-cell-val g" id="fc-io">--</span></div>
+          <div class="fc-cell"><span class="fc-cell-label">BARO</span><span class="fc-cell-val g" id="fc-baro">--</span></div>
+          <div class="fc-cell"><span class="fc-cell-label">MAG</span><span class="fc-cell-val g" id="fc-mag">--</span></div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Comms + Output -->
+      <div class="node" id="node-rc" style="right:3%;top:4%">
+        <div class="node-name">RC Receiver</div>
+        <div class="node-bus">SBUS / PPM</div>
+        <div class="node-detail" id="nd-rc">RSSI --</div>
+        <span class="node-chip chip-off" id="nc-rc">OFFLINE</span>
+      </div>
+
+      <div class="node" id="node-telem" style="right:3%;top:22%">
+        <div class="node-name">Telemetry Radio</div>
+        <div class="node-bus">SiK · MAVLink v2</div>
+        <div class="node-detail" id="nd-telem">Link --</div>
+        <span class="node-chip chip-off" id="nc-telem">OFFLINE</span>
+      </div>
+
+      <div class="node" id="node-power" style="right:3%;top:40%">
+        <div class="node-name">Power Module</div>
+        <div class="node-bus">ADC / SMBUS</div>
+        <div class="node-detail" id="nd-power">-- V · -- A · --%</div>
+        <span class="node-chip chip-off" id="nc-power">OFFLINE</span>
+      </div>
+
+      <div class="node" id="node-esc" style="right:3%;top:62%">
+        <div class="node-name">ESC / Motors</div>
+        <div class="node-bus">PWM · DSHOT</div>
+        <div class="node-detail" id="nd-esc">M1–M4 offline</div>
+        <span class="node-chip chip-off" id="nc-esc">OFFLINE</span>
+      </div>
+
+      <div class="node" id="node-gcs" style="right:3%;top:80%">
+        <div class="node-name">GCS Link</div>
+        <div class="node-bus">WebSocket · localhost</div>
+        <div class="node-detail" id="nd-gcs">Connecting...</div>
+        <span class="node-chip chip-off" id="nc-gcs">OFFLINE</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL: Live metrics -->
+  <div class="right-panel">
+    <div class="right-head">Live Telemetry</div>
+    <div class="right-rows">
+      <div class="right-section-title">Navigation</div>
+      <div class="right-row"><span class="right-row-name">GPS Fix</span><span class="right-row-val b" id="rv-fix">--</span></div>
+      <div class="right-row"><span class="right-row-name">Satellites</span><span class="right-row-val" id="rv-sats">--</span></div>
+      <div class="right-row"><span class="right-row-name">HDOP</span><span class="right-row-val" id="rv-hdop">--</span></div>
+      <div class="right-row"><span class="right-row-name">Latitude</span><span class="right-row-val" id="rv-lat">--</span></div>
+      <div class="right-row"><span class="right-row-name">Longitude</span><span class="right-row-val" id="rv-lon">--</span></div>
+      <div class="right-section-title">Attitude</div>
+      <div class="right-row"><span class="right-row-name">Roll</span><span class="right-row-val" id="rv-roll">--</span></div>
+      <div class="right-row"><span class="right-row-name">Pitch</span><span class="right-row-val" id="rv-pitch">--</span></div>
+      <div class="right-row"><span class="right-row-name">Heading</span><span class="right-row-val b" id="rv-yaw">--</span></div>
+      <div class="right-section-title">Power</div>
+      <div class="right-row"><span class="right-row-name">Voltage</span><span class="right-row-val" id="rv-volt">--</span></div>
+      <div class="right-row"><span class="right-row-name">Current</span><span class="right-row-val a" id="rv-curr">--</span></div>
+      <div class="right-row"><span class="right-row-name">Battery</span><span class="right-row-val" id="rv-batt">--</span></div>
+      <div class="right-section-title">Sensors</div>
+      <div class="right-row"><span class="right-row-name">Altitude AGL</span><span class="right-row-val" id="rv-alt">--</span></div>
+      <div class="right-row"><span class="right-row-name">Lidar Range</span><span class="right-row-val" id="rv-lidar">--</span></div>
+      <div class="right-row"><span class="right-row-name">Flow Quality</span><span class="right-row-val" id="rv-flow">--</span></div>
+      <div class="right-row"><span class="right-row-name">RSSI</span><span class="right-row-val" id="rv-rssi">--</span></div>
+      <div class="right-row"><span class="right-row-name">Vib Level</span><span class="right-row-val" id="rv-vib">--</span></div>
+      <div class="right-row"><span class="right-row-name">CPU Load</span><span class="right-row-val" id="rv-cpu">--</span></div>
+    </div>
+  </div>
+
+  <!-- LOG BAR -->
+  <div class="log-bar">
+    <div class="log-head">
+      <span class="log-head-title">System Events</span>
+      <span class="log-errs" id="logErrs">0 faults</span>
+    </div>
+    <div class="log-rows" id="logRows"></div>
+  </div>
+
+</div>
+
+<script>
+const airsentMode = (localStorage.getItem("airsentMode") || "demo").toLowerCase();
+const isActual = airsentMode === "actual";
+let faultCount = 0;
+
+function pad(n) { return String(n).padStart(2,"0"); }
+function now()  { const d=new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
+function el(id) { return document.getElementById(id); }
+function r2d(r) { return r * 180 / Math.PI; }
+
+// ── Wire drawing ─────────────────────────────────────────
+function getNodeCenter(nodeEl, parentEl) {
+  const nr = nodeEl.getBoundingClientRect();
+  const pr = parentEl.getBoundingClientRect();
+  return {
+    x: nr.left - pr.left + nr.width / 2,
+    y: nr.top  - pr.top  + nr.height / 2,
+    right:  nr.right  - pr.left,
+    left:   nr.left   - pr.left,
+    top:    nr.top    - pr.top,
+    bottom: nr.bottom - pr.top,
+  };
+}
+
+const WIRE_COLORS = {
+  ok:    '#4ade80',
+  warn:  '#fbbf24',
+  fault: '#f87171',
+  off:   '#1e3d52',
+};
+
+function drawWires() {
+  const svg = el('wiresSvg');
+  const area = el('diagramArea');
+  if (!svg || !area) return;
+  svg.innerHTML = '';
+
+  const W = area.offsetWidth;
+  const H = area.offsetHeight;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+
+  const fc = el('node-fc');
+  if (!fc) return;
+
+  const fcPos = getNodeCenter(fc, area);
+
+  // Nodes to connect, side they exit from, and state key
+  const leftNodes = ['node-gps','node-mag','node-baro','node-flow','node-lidar'];
+  const rightNodes = ['node-rc','node-telem','node-power','node-esc','node-gcs'];
+
+  function drawPath(x1, y1, x2, y2, state) {
+    const color = WIRE_COLORS[state] || WIRE_COLORS.off;
+    const active = state === 'ok' || state === 'warn';
+    const mx = (x1 + x2) / 2;
+    const d = `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`;
+
+    // background glow track
+    const track = document.createElementNS('http://www.w3.org/2000/svg','path');
+    track.setAttribute('d', d);
+    track.setAttribute('fill', 'none');
+    track.setAttribute('stroke', color);
+    track.setAttribute('stroke-width', '1');
+    track.setAttribute('stroke-opacity', active ? '0.15' : '0.06');
+    svg.appendChild(track);
+
+    // active line
+    const line = document.createElementNS('http://www.w3.org/2000/svg','path');
+    line.setAttribute('d', d);
+    line.setAttribute('fill', 'none');
+    line.setAttribute('stroke', color);
+    line.setAttribute('stroke-width', active ? '1.5' : '1');
+    line.setAttribute('stroke-opacity', active ? '0.7' : '0.2');
+    line.setAttribute('stroke-dasharray', active ? '6 4' : '3 6');
+    if (active) line.classList.add('wire-active');
+    svg.appendChild(line);
+
+    // dot at each end
+    [x1,y1,x2,y2].forEach((_, i, arr) => {
+      if (i % 2 !== 0) return;
+      const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      circle.setAttribute('cx', arr[i]);
+      circle.setAttribute('cy', arr[i+1]);
+      circle.setAttribute('r', '2.5');
+      circle.setAttribute('fill', active ? color : WIRE_COLORS.off);
+      circle.setAttribute('fill-opacity', active ? '0.8' : '0.3');
+      svg.appendChild(circle);
+    });
+  }
+
+  leftNodes.forEach(id => {
+    const node = el(id); if (!node) return;
+    const pos = getNodeCenter(node, area);
+    const state = node.dataset.state || 'off';
+    drawPath(pos.right, pos.y, fcPos.left, fcPos.y, state);
+  });
+
+  rightNodes.forEach(id => {
+    const node = el(id); if (!node) return;
+    const pos = getNodeCenter(node, area);
+    const state = node.dataset.state || 'off';
+    drawPath(fcPos.right, fcPos.y, pos.left, pos.y, state);
+  });
+}
+
+// ── Node update ───────────────────────────────────────────
+function setNode(id, state, detail, chip) {
+  const node = el('node-'+id);
+  if (node) {
+    node.classList.remove('ok','warn','fault');
+    if (state !== 'off') node.classList.add(state);
+    node.dataset.state = state;
+  }
+  const nd = el('nd-'+id); if (nd && detail) nd.textContent = detail;
+  const nc = el('nc-'+id);
+  if (nc) {
+    nc.classList.remove('chip-ok','chip-warn','chip-fault','chip-off');
+    nc.classList.add({ok:'chip-ok',warn:'chip-warn',fault:'chip-fault',off:'chip-off'}[state]||'chip-off');
+    nc.textContent = chip || {ok:'OK',warn:'WARN',fault:'FAULT',off:'OFFLINE'}[state]||'OFFLINE';
+  }
+}
+
+function setRv(id, val, cls) {
+  const e = el('rv-'+id); if (!e) return;
+  e.textContent = val;
+  if (cls !== undefined) e.className = 'right-row-val' + (cls?' '+cls:'');
+}
+
+function addLog(msg, cat) {
+  const rows = el('logRows'); if (!rows) return;
+  const row = document.createElement('div');
+  row.className = 'log-row';
+  row.innerHTML = `<span class="log-t">${now()}</span><span class="log-c ${cat}">${cat.toUpperCase()}</span><span class="log-m">${msg}</span>`;
+  rows.prepend(row);
+  while(rows.children.length > 50) rows.removeChild(rows.lastChild);
+  if (cat==='fault') { faultCount++; el('logErrs').textContent=`${faultCount} fault${faultCount!==1?'s':''}`; }
+}
+
+// ── Apply data ────────────────────────────────────────────
+let prevStates = {};
+function applyData(d) {
+  el('hUpd').textContent = now();
+
+  const r2deg = r => r2d(r);
+
+  // GPS
+  const gpsOk = d.fix_type && d.fix_type !== 'NO FIX';
+  const gpsSt = gpsOk ? 'ok' : d.sats > 0 ? 'warn' : 'off';
+  setNode('gps', gpsSt, `${d.fix_type||'NO FIX'} · ${d.sats||0} sats`);
+  setRv('fix',  d.fix_type||'--', gpsOk?'b':'a');
+  setRv('sats', d.sats!=null?String(d.sats):'--', d.sats>=10?'g':'a');
+  setRv('hdop', d.hdop!=null?d.hdop.toFixed(2):'--', d.hdop<1.5?'g':'a');
+  setRv('lat',  d.lat!=null?d.lat.toFixed(5)+'°':'--');
+  setRv('lon',  d.lon!=null?d.lon.toFixed(5)+'°':'--');
+
+  // IMU / Attitude
+  const imuOk = d.sensors_health ? !!(d.sensors_health & 0x3F) : d.roll!==undefined;
+  const ekfOk = d.ekf_healthy !== false;
+  if (d.roll !== undefined) {
+    const rd=r2deg(d.roll), pd=r2deg(d.pitch||0), yd=((r2deg(d.yaw||0))+360)%360;
+    setRv('roll',  `${rd>=0?'+':''}${rd.toFixed(1)}°`);
+    setRv('pitch', `${pd>=0?'+':''}${pd.toFixed(1)}°`);
+    setRv('yaw',   `${Math.round(yd)}°`, 'b');
+  }
+
+  // FC health
+  el('fc-imu').textContent  = imuOk ? 'OK' : 'FAULT';
+  el('fc-imu').className    = 'fc-cell-val ' + (imuOk?'g':'r');
+  el('fc-ekf').textContent  = ekfOk ? 'OK' : 'DEG';
+  el('fc-ekf').className    = 'fc-cell-val ' + (ekfOk?'g':'a');
+  el('fc-gps').textContent  = gpsOk ? 'OK' : 'WARN';
+  el('fc-gps').className    = 'fc-cell-val ' + (gpsOk?'g':'a');
+  el('fc-io').textContent   = 'OK';
+  el('fc-io').className     = 'fc-cell-val g';
+
+  const baroOk = d.alt !== undefined;
+  el('fc-baro').textContent = baroOk ? 'OK' : 'OFF';
+  el('fc-baro').className   = 'fc-cell-val ' + (baroOk?'g':'r');
+
+  const magOk = d.sensors_health ? !!(d.sensors_health & 0x100) : true;
+  el('fc-mag').textContent  = magOk ? 'OK' : 'FAULT';
+  el('fc-mag').className    = 'fc-cell-val ' + (magOk?'g':'r');
+
+  // Baro node
+  setNode('baro', baroOk?'ok':'off', d.alt!=null?`${d.alt.toFixed(1)} m AGL`:'-- m AGL');
+  setRv('alt', d.alt!=null?`${d.alt.toFixed(1)} m`:'--');
+
+  // Mag node
+  setNode('mag', magOk?'ok':'fault', d.heading!=null?`${d.heading}° heading`:'--');
+
+  // Flow
+  const fq=d.of_quality, flowOk=fq!=null&&fq>50;
+  setNode('flow', fq!=null?(flowOk?'ok':'warn'):'off', fq!=null?`Quality ${Math.round(fq)}%`:'Quality --');
+  setRv('flow', fq!=null?`${Math.round(fq)}%`:'--', flowOk?'g':'a');
+
+  // Lidar
+  const rng=d.rangefinder, rngOk=rng!=null&&rng>0.05&&rng<12;
+  setNode('lidar', rng!=null?(rngOk?'ok':'warn'):'off', rng!=null?`${rng.toFixed(2)} m range`:'-- m');
+  setRv('lidar', rng!=null?`${rng.toFixed(2)} m`:'--', rngOk?'g':'a');
+
+  // RC
+  const rssi=d.rssi, rcOk=rssi!=null&&rssi>20;
+  setNode('rc', rcOk?'ok':rssi!=null?'warn':'off', rssi!=null?`RSSI ${rssi.toFixed(0)}%`:'RSSI --');
+  setRv('rssi', rssi!=null?`${rssi.toFixed(0)}%`:'--', rssi>60?'g':rssi>30?'a':'r');
+
+  // Telemetry (GCS connected = we have data)
+  setNode('telem', 'ok', 'MAVLink active', 'LINKED');
+  setNode('gcs',   'ok', 'WebSocket active', 'LINKED');
+
+  // Power
+  const volt=d.voltage||0, batt=d.battery!=null?Math.round(d.battery):null;
+  const pwrSt=volt>13?'ok':volt>10?'warn':volt>0?'fault':'off';
+  setNode('power', pwrSt, `${volt.toFixed(1)}V · ${d.current!=null?d.current.toFixed(1):'--'}A · ${batt!=null?batt+'%':'--'}`);
+  setRv('volt', volt?`${volt.toFixed(1)} V`:'--', volt>14?'g':volt>12?'a':'r');
+  setRv('curr', d.current!=null?`${d.current.toFixed(1)} A`:'--', 'a');
+  setRv('batt', batt!=null?`${batt}%`:'--', batt>50?'g':batt>25?'a':'r');
+
+  // ESC
+  const escOk=d.m1!=null;
+  setNode('esc', escOk?'ok':'off',
+    d.m1!=null?`${Math.floor(d.m1)}/${Math.floor(d.m2||0)}/${Math.floor(d.m3||0)}/${Math.floor(d.m4||0)} μs`:'M1–M4 offline');
+
+  // Vibration
+  const vx=d.vib_x,vy=d.vib_y,vz=d.vib_z;
+  const vm=vx!=null?Math.sqrt(vx*vx+vy*vy+vz*vz):null;
+  const vibOk=vm!=null&&vm<30;
+  setRv('vib', vm!=null?(vibOk?'Low':vm<60?'Medium':'High'):'--', vibOk?'g':vm<60?'a':'r');
+
+  // CPU
+  setRv('cpu', d.cpu!=null?`${Math.round(d.cpu)}%`:'--', d.cpu<70?'':'a');
+
+  // Header
+  const nodes=['gps','mag','baro','flow','lidar','rc','power','esc'];
+  const okC=nodes.filter(id=>el('node-'+id)?.classList.contains('ok')).length;
+  el('hStatus').textContent=`${okC}/${nodes.length} OK`;
+  el('hStatus').className='t-val '+(okC>=7?'g':okC>=5?'a':'r');
+  el('hHealth').textContent=ekfOk&&imuOk?'NOMINAL':'DEGRADED';
+  el('hHealth').className='t-val '+(ekfOk&&imuOk?'g':'a');
+  el('hEkf').textContent=ekfOk?'HEALTHY':'DEGRADED';
+  el('hEkf').className='t-val '+(ekfOk?'g':'r');
+  if(d.flight_mode) el('hMode').textContent=d.flight_mode;
+  if(d.armed!==undefined){el('hArmed').textContent=d.armed?'ARMED':'Disarmed';el('hArmed').className='t-val '+(d.armed?'r':'a');}
+
+  // Redraw wires
+  drawWires();
+}
+
+function setDisconnected() {
+  ['gps','mag','baro','flow','lidar','rc','telem','power','esc','gcs'].forEach(id => {
+    setNode(id, 'off', '--', 'OFFLINE');
+  });
+  el('fc-imu').textContent='--'; el('fc-ekf').textContent='--';
+  el('fc-gps').textContent='--'; el('fc-io').textContent='--';
+  el('fc-baro').textContent='--'; el('fc-mag').textContent='--';
+  drawWires();
+}
+
+function runDemo() {
+  function rnd(a,b){return Math.random()*(b-a)+a;}
+  addLog('Demo mode — simulated system data','info');
+  setInterval(()=>{
+    applyData({
+      fix_type:'RTK FIX', sats:Math.floor(rnd(16,22)), hdop:rnd(0.5,1.2),
+      lat:33.4136+rnd(-0.001,0.001), lon:-111.9196+rnd(-0.001,0.001),
+      roll:rnd(-0.06,0.06), pitch:rnd(-0.05,0.05), yaw:rnd(0,6.28),
+      sensors_health:0x201FF, ekf_healthy:true,
+      ekf_compass_variance:rnd(0.01,0.05),
+      alt:rnd(0,1), climb:rnd(-0.1,0.1),
+      groundspeed:0, heading:Math.floor(rnd(100,200)),
+      voltage:rnd(15.5,16.0), current:rnd(4,6), battery:rnd(60,75),
+      rangefinder:rnd(0.3,1.0), of_quality:rnd(70,100),
+      rssi:rnd(75,92), rc_throttle:1000,
+      vib_x:rnd(0.5,3), vib_y:rnd(0.5,3), vib_z:rnd(1,6),
+      m1:rnd(1000,1050), m2:rnd(1000,1050), m3:rnd(1000,1050), m4:rnd(1000,1050),
+      cpu:rnd(25,42), flight_mode:'STABILIZE', armed:false,
+    });
+  }, 1000);
+}
+
+let ws=null;
+function connectWs() {
+  ws=new WebSocket('ws://localhost:8765');
+  ws.onopen=()=>{ addLog('Telemetry link established','ok'); setNode('gcs','ok','WebSocket active','LINKED'); setNode('telem','ok','MAVLink active','LINKED'); drawWires(); };
+  ws.onmessage=e=>{try{applyData(JSON.parse(e.data));}catch(err){}};
+  ws.onclose=()=>{ setDisconnected(); addLog('Link lost — retrying','fault'); setTimeout(connectWs,3000); };
+  ws.onerror=()=>{ws=null;};
+}
+
+setInterval(()=>el('hClock').textContent=now(),1000);
+window.addEventListener('resize', drawWires);
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  setDisconnected();
+  if(isActual){ connectWs(); }
+  else { runDemo(); }
+  // Initial wire draw after layout
+  setTimeout(drawWires, 100);
+});
+</script>
+</body>
+</html>

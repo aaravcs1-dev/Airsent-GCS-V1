@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Airsent — Mission Planner</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+/* ── Reset / base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  height: 100vh;
+  overflow: hidden;
+  background: #03070b;
+  color: #e9f3fb;
+  font-family: Arial, Helvetica, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Logo dropdown (same as dashboard) ───────────────────── */
+.logo-dropdown { position:relative; display:inline-block; margin-right:12px; }
+.logo-dropdown-btn { background:transparent; border:none; padding:0; display:flex; align-items:center; cursor:pointer; }
+.logo-dropdown-btn img { display:block; }
+.logo-dropdown-menu {
+  display:none; position:absolute; top:calc(100% + 8px); left:0;
+  min-width:220px; background:#07111f;
+  border:1px solid rgba(0,255,170,.25);
+  box-shadow:0 0 12px rgba(0,255,170,.12);
+  z-index:2000; border-radius:8px; overflow:hidden;
+}
+.logo-dropdown-menu a {
+  display:block; padding:12px 14px; color:#d7e6f5;
+  text-decoration:none; font-size:14px; letter-spacing:.5px; background:#07111f;
+}
+.logo-dropdown-menu a:hover { background:#0d1b2d; color:#7fffd4; }
+.logo-dropdown:hover .logo-dropdown-menu,
+.logo-dropdown:focus-within .logo-dropdown-menu { display:block; }
+
+/* ── Top bar ──────────────────────────────────────────────── */
+.mp-topbar {
+  flex-shrink: 0;
+  height: 44px;
+  background: linear-gradient(180deg,rgba(9,19,28,.97),rgba(4,10,16,.99));
+  border-bottom: 1px solid #173040;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  z-index: 100;
+}
+
+.mp-topbar-title {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #7fdcff;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-right: 8px;
+}
+
+.mp-topbar-sep {
+  width: 1px;
+  height: 24px;
+  background: #173040;
+  margin: 0 4px;
+}
+
+.mp-btn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 4px;
+  border: 1px solid rgba(127,220,255,.2);
+  background: rgba(10,22,34,.8);
+  color: #c8dce8;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background .12s, border-color .12s;
+  white-space: nowrap;
+}
+.mp-btn:hover { background:rgba(20,40,58,.9); border-color:rgba(127,220,255,.45); color:#fff; }
+.mp-btn.active { background:rgba(127,220,255,.12); border-color:#7fdcff; color:#7fdcff; }
+.mp-btn.danger { border-color:rgba(255,93,115,.35); color:#ff8fa0; }
+.mp-btn.danger:hover { background:rgba(255,93,115,.1); border-color:#ff5d73; }
+.mp-btn.green { border-color:rgba(98,255,158,.35); color:#62ff9e; }
+.mp-btn.green:hover { background:rgba(98,255,158,.08); border-color:#62ff9e; }
+
+.mp-btn-icon { font-size: 13px; line-height: 1; }
+
+.mp-topbar-right { margin-left: auto; display:flex; align-items:center; gap:8px; }
+
+.mp-stat {
+  font-size: 10px;
+  letter-spacing: .8px;
+  color: #8ea6b8;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.mp-stat b { color: #fff; font-weight:700; }
+
+/* ── Main layout ──────────────────────────────────────────── */
+.mp-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  position: relative;
+}
+
+/* ── Map fills everything ─────────────────────────────────── */
+#missionMap {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* ── Left tool panel ─────────────────────────────────────── */
+.mp-tools {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mp-tool-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid rgba(127,220,255,.18);
+  background: rgba(7,15,24,.92);
+  color: #8ea6b8;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .12s;
+  backdrop-filter: blur(4px);
+  position: relative;
+}
+.mp-tool-btn:hover { background:rgba(20,38,56,.95); border-color:rgba(127,220,255,.4); color:#7fdcff; }
+.mp-tool-btn.active { background:rgba(127,220,255,.15); border-color:#7fdcff; color:#7fdcff; }
+.mp-tool-btn[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #07111f;
+  border: 1px solid #173040;
+  color: #c8dce8;
+  font-size: 10px;
+  letter-spacing: .8px;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+  text-transform: uppercase;
+}
+
+.mp-tool-sep {
+  height: 1px;
+  background: #173040;
+  margin: 2px 0;
+}
+
+/* ── Waypoint list panel (right side) ───────────────────── */
+.mp-wp-panel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  bottom: 10px;
+  width: 300px;
+  z-index: 10;
+  background: rgba(5,12,20,.93);
+  border: 1px solid #173040;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(6px);
+  overflow: hidden;
+}
+
+.mp-wp-header {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid #173040;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.mp-wp-header-title {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: #7fdcff;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.mp-wp-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.mp-wp-action-btn {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 3px;
+  border: 1px solid rgba(127,220,255,.2);
+  background: transparent;
+  color: #8ea6b8;
+  font-size: 9px;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all .12s;
+}
+.mp-wp-action-btn:hover { border-color:rgba(127,220,255,.5); color:#7fdcff; }
+
+/* Column headers */
+.mp-wp-cols {
+  display: grid;
+  grid-template-columns: 28px 1fr 60px 60px 60px 24px;
+  gap: 2px;
+  padding: 5px 8px 4px;
+  border-bottom: 1px solid rgba(23,48,64,.6);
+  flex-shrink: 0;
+}
+.mp-wp-col-label {
+  font-size: 9px;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: #4a6878;
+  text-align: center;
+}
+.mp-wp-col-label:first-child { text-align: left; }
+
+/* Waypoint list */
+.mp-wp-list {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #173040 transparent;
+}
+.mp-wp-list::-webkit-scrollbar { width: 4px; }
+.mp-wp-list::-webkit-scrollbar-track { background: transparent; }
+.mp-wp-list::-webkit-scrollbar-thumb { background: #173040; border-radius: 2px; }
+
+.mp-wp-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 60px 60px 60px 24px;
+  gap: 2px;
+  padding: 4px 8px;
+  align-items: center;
+  border-bottom: 1px solid rgba(23,48,64,.35);
+  cursor: pointer;
+  transition: background .1s;
+}
+.mp-wp-row:hover { background: rgba(127,220,255,.05); }
+.mp-wp-row.selected { background: rgba(127,220,255,.1); border-color: rgba(127,220,255,.2); }
+.mp-wp-row.home-row { background: rgba(98,255,158,.06); }
+.mp-wp-row.home-row .wp-num { color: #62ff9e; }
+
+.wp-num {
+  font-size: 10px;
+  font-weight: 700;
+  color: #f0bc59;
+  text-align: center;
+}
+.wp-type {
+  font-size: 10px;
+  color: #c8dce8;
+  letter-spacing: .3px;
+}
+.wp-val {
+  font-size: 10px;
+  color: #7fdcff;
+  text-align: center;
+  font-family: monospace;
+}
+.wp-del-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid rgba(255,93,115,.25);
+  background: transparent;
+  color: #ff8fa0;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .1s;
+}
+.wp-del-btn:hover { background: rgba(255,93,115,.15); border-color: #ff5d73; }
+
+/* Empty state */
+.mp-wp-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #3a5568;
+  font-size: 11px;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  padding: 20px;
+  text-align: center;
+}
+.mp-wp-empty-icon { font-size: 28px; opacity: .4; }
+
+/* Mission summary footer */
+.mp-wp-footer {
+  border-top: 1px solid #173040;
+  padding: 8px 12px;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+.mp-summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.mp-summary-label {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #4a6878;
+  text-transform: uppercase;
+}
+.mp-summary-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: #7fdcff;
+  font-family: monospace;
+}
+
+/* ── Waypoint detail editor (bottom strip) ──────────────── */
+.mp-wp-detail {
+  display: none;
+  border-top: 1px solid #173040;
+  padding: 10px 12px;
+  flex-shrink: 0;
+  background: rgba(4,10,16,.6);
+}
+.mp-wp-detail.visible { display: block; }
+.mp-wp-detail-title {
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: #7fdcff;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.mp-wp-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.mp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.mp-field label {
+  font-size: 8px;
+  letter-spacing: .8px;
+  color: #4a6878;
+  text-transform: uppercase;
+}
+.mp-field input, .mp-field select {
+  height: 24px;
+  background: rgba(10,22,34,.9);
+  border: 1px solid rgba(127,220,255,.18);
+  border-radius: 3px;
+  color: #c8dce8;
+  font-size: 10px;
+  padding: 0 6px;
+  font-family: monospace;
+  width: 100%;
+  outline: none;
+}
+.mp-field input:focus, .mp-field select:focus {
+  border-color: rgba(127,220,255,.5);
+  color: #fff;
+}
+
+/* ── Bottom status bar ───────────────────────────────────── */
+.mp-statusbar {
+  position: absolute;
+  bottom: 10px;
+  left: 56px;
+  right: 320px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+.mp-coords {
+  background: rgba(5,12,20,.88);
+  border: 1px solid #173040;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 10px;
+  font-family: monospace;
+  color: #7fdcff;
+  letter-spacing: .5px;
+}
+.mp-mode-badge {
+  background: rgba(127,220,255,.1);
+  border: 1px solid rgba(127,220,255,.3);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #7fdcff;
+  text-transform: uppercase;
+}
+
+/* ── Leaflet overrides ───────────────────────────────────── */
+.leaflet-container { background: #0b1118; }
+.leaflet-control-zoom a {
+  background: rgba(5,12,20,.92) !important;
+  color: #7fdcff !important;
+  border-color: #173040 !important;
+  border-radius: 4px !important;
+}
+.leaflet-control-zoom { border: 1px solid #173040 !important; border-radius:6px !important; }
+.leaflet-control-attribution {
+  background: rgba(0,0,0,.5) !important;
+  color: #4a6878 !important;
+  font-size: 9px !important;
+}
+
+/* Waypoint marker styles */
+.wp-marker-label {
+  background: rgba(240,188,89,.9);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #000;
+  box-shadow: 0 2px 8px rgba(0,0,0,.5);
+  cursor: pointer;
+}
+.wp-marker-label.home-marker {
+  background: rgba(98,255,158,.9);
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+}
+.wp-marker-label.selected-marker {
+  background: rgba(127,220,255,.95);
+  box-shadow: 0 0 12px rgba(127,220,255,.6);
+}
+</style>
+</head>
+<body>
+
+<!-- ── TOP BAR ───────────────────────────────────────────── -->
+<div class="mp-topbar">
+  <div class="logo-dropdown">
+    <button class="logo-dropdown-btn" type="button">
+      <img src="logo.png" alt="Airsent" style="height:28px;">
+    </button>
+    <div class="logo-dropdown-menu">
+      <a href="dashboard.html">Main Dashboard</a>
+      <a href="mission.html">Mission Planner</a>
+      <a href="preflight.html">Pre-Flight Checklist</a>
+      <a href="parameters.html">Parameters</a>
+      <a href="logs.html">Flight Logs</a>
+      <a href="launch.html">Launch Sequencer</a>
+      <a href="health.html">System Health</a>
+      <a href="sensor-status.html">Sensor Status</a>
+      <a href="actuators.html">Actuators</a>
+    </div>
+  </div>
+
+  <div class="mp-topbar-sep"></div>
+  <span class="mp-topbar-title">Mission Planner</span>
+  <div class="mp-topbar-sep"></div>
+
+  <button class="mp-btn green" id="btnUpload" title="Upload mission to drone">
+    <span class="mp-btn-icon">⬆</span> Upload
+  </button>
+  <button class="mp-btn" id="btnDownload" title="Download mission from drone">
+    <span class="mp-btn-icon">⬇</span> Download
+  </button>
+  <button class="mp-btn" id="btnSave">
+    <span class="mp-btn-icon">💾</span> Save
+  </button>
+  <button class="mp-btn" id="btnLoad">
+    <span class="mp-btn-icon">📂</span> Load
+  </button>
+  <div class="mp-topbar-sep"></div>
+  <button class="mp-btn danger" id="btnClearAll">
+    <span class="mp-btn-icon">✕</span> Clear All
+  </button>
+
+  <div class="mp-topbar-right">
+    <div class="mp-stat">WP COUNT <b id="statWpCount">0</b></div>
+    <div class="mp-topbar-sep"></div>
+    <div class="mp-stat">TOTAL DIST <b id="statDist">0.0 m</b></div>
+    <div class="mp-topbar-sep"></div>
+    <div class="mp-stat">EST TIME <b id="statTime">--</b></div>
+    <div class="mp-topbar-sep"></div>
+    <div class="mp-stat" id="statMode">MODE <b>ADD WP</b></div>
+  </div>
+</div>
+
+<!-- ── MAIN BODY ─────────────────────────────────────────── -->
+<div class="mp-body">
+
+  <!-- Map -->
+  <div id="missionMap"></div>
+
+  <!-- Left toolbar -->
+  <div class="mp-tools">
+    <button class="mp-tool-btn active" id="toolAddWp" title="Add Waypoint">📍</button>
+    <button class="mp-tool-btn" id="toolAddLoiter" title="Add Loiter">🔄</button>
+    <button class="mp-tool-btn" id="toolAddRTL" title="Add RTL">🏠</button>
+    <button class="mp-tool-btn" id="toolAddLand" title="Add Land">⬇</button>
+    <div class="mp-tool-sep"></div>
+    <button class="mp-tool-btn" id="toolPan" title="Pan / Select">✋</button>
+    <div class="mp-tool-sep"></div>
+    <button class="mp-tool-btn" id="toolZoomIn" title="Zoom In">+</button>
+    <button class="mp-tool-btn" id="toolZoomOut" title="Zoom Out">−</button>
+    <div class="mp-tool-sep"></div>
+    <button class="mp-tool-btn" id="toolCenter" title="Center on Home">◎</button>
+  </div>
+
+  <!-- Right waypoint panel -->
+  <div class="mp-wp-panel">
+    <div class="mp-wp-header">
+      <span class="mp-wp-header-title">Mission Waypoints</span>
+      <div class="mp-wp-header-actions">
+        <button class="mp-wp-action-btn" id="btnReverse">Reverse</button>
+        <button class="mp-wp-action-btn" id="btnAutoAlt">Auto Alt</button>
+      </div>
+    </div>
+
+    <!-- Column headers -->
+    <div class="mp-wp-cols">
+      <span class="mp-wp-col-label">#</span>
+      <span class="mp-wp-col-label">Command</span>
+      <span class="mp-wp-col-label">Alt (m)</span>
+      <span class="mp-wp-col-label">Lat</span>
+      <span class="mp-wp-col-label">Lon</span>
+      <span class="mp-wp-col-label"></span>
+    </div>
+
+    <!-- Waypoint list -->
+    <div class="mp-wp-list" id="wpList">
+      <div class="mp-wp-empty" id="wpEmpty">
+        <div class="mp-wp-empty-icon">🗺</div>
+        <div>Click the map to add waypoints</div>
+        <div style="font-size:9px;color:#2a3e4e;margin-top:4px;">Hold SHIFT to add multiple</div>
+      </div>
+    </div>
+
+    <!-- Selected WP detail editor -->
+    <div class="mp-wp-detail" id="wpDetail">
+      <div class="mp-wp-detail-title" id="wpDetailTitle">Waypoint 1 — WAYPOINT</div>
+      <div class="mp-wp-detail-grid">
+        <div class="mp-field">
+          <label>Altitude (m)</label>
+          <input type="number" id="detailAlt" value="30" min="0" max="500" step="1">
+        </div>
+        <div class="mp-field">
+          <label>Command</label>
+          <select id="detailCmd">
+            <option value="WAYPOINT">WAYPOINT</option>
+            <option value="LOITER_UNLIM">LOITER UNLIM</option>
+            <option value="LOITER_TURNS">LOITER TURNS</option>
+            <option value="LOITER_TIME">LOITER TIME</option>
+            <option value="RTL">RETURN TO LAUNCH</option>
+            <option value="LAND">LAND</option>
+            <option value="TAKEOFF">TAKEOFF</option>
+          </select>
+        </div>
+        <div class="mp-field">
+          <label>Latitude</label>
+          <input type="text" id="detailLat" readonly>
+        </div>
+        <div class="mp-field">
+          <label>Longitude</label>
+          <input type="text" id="detailLon" readonly>
+        </div>
+        <div class="mp-field">
+          <label>Speed (m/s)</label>
+          <input type="number" id="detailSpeed" value="10" min="1" max="30" step="1">
+        </div>
+        <div class="mp-field">
+          <label>Radius (m)</label>
+          <input type="number" id="detailRadius" value="5" min="1" max="100" step="1">
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer stats -->
+    <div class="mp-wp-footer">
+      <div class="mp-summary-item">
+        <span class="mp-summary-label">Waypoints</span>
+        <span class="mp-summary-val" id="footWp">0</span>
+      </div>
+      <div class="mp-summary-item">
+        <span class="mp-summary-label">Distance</span>
+        <span class="mp-summary-val" id="footDist">0 m</span>
+      </div>
+      <div class="mp-summary-item">
+        <span class="mp-summary-label">Est. Time</span>
+        <span class="mp-summary-val" id="footTime">--</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom status bar -->
+  <div class="mp-statusbar">
+    <div class="mp-coords" id="coordDisplay">LAT: -- &nbsp; LON: --</div>
+    <div class="mp-mode-badge" id="modeDisplay">ADD WAYPOINT</div>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── State ─────────────────────────────────────────────────
+const DEFAULT_ALT = 30;
+const CRUISE_SPEED = 10; // m/s for time estimate
+
+let waypoints = []; // { id, lat, lon, alt, cmd, speed, radius, marker, selected }
+let homeLat = 33.4136;
+let homeLon = -111.9196;
+let selectedWpId = null;
+let activeTool = 'addWp'; // addWp | addLoiter | addRTL | addLand | pan
+let wpIdCounter = 0;
+let pathLine = null;
+let homeMarker = null;
+
+// ── Map init ──────────────────────────────────────────────
+const map = L.map('missionMap', {
+  center: [homeLat, homeLon],
+  zoom: 17,
+  zoomControl: false,
+});
+
+L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png', {
+  maxZoom: 20,
+  attribution: '&copy; Stadia Maps &copy; OpenMapTiles &copy; OpenStreetMap'
+}).addTo(map);
+
+// Home marker
+function makeHomeMarker() {
+  if (homeMarker) homeMarker.remove();
+  const icon = L.divIcon({
+    className: '',
+    html: '<div class="wp-marker-label home-marker">H</div>',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  });
+  homeMarker = L.marker([homeLat, homeLon], { icon, draggable: true, zIndexOffset: 1000 })
+    .addTo(map)
+    .bindTooltip('Home / Launch', { className: 'wp-tooltip', direction: 'top' });
+  homeMarker.on('dragend', e => {
+    const pos = e.target.getLatLng();
+    homeLat = pos.lat;
+    homeLon = pos.lng;
+    updateStats();
+    redrawPath();
+  });
+}
+makeHomeMarker();
+
+// Mouse move — show coords
+map.on('mousemove', e => {
+  document.getElementById('coordDisplay').innerHTML =
+    `LAT: ${e.latlng.lat.toFixed(6)} &nbsp; LON: ${e.latlng.lng.toFixed(6)}`;
+});
+
+// Map click — add waypoint
+map.on('click', e => {
+  if (activeTool === 'pan') return;
+
+  let cmd = 'WAYPOINT';
+  if (activeTool === 'addLoiter') cmd = 'LOITER_UNLIM';
+  if (activeTool === 'addRTL')    cmd = 'RTL';
+  if (activeTool === 'addLand')   cmd = 'LAND';
+
+  addWaypoint(e.latlng.lat, e.latlng.lng, DEFAULT_ALT, cmd);
+});
+
+// ── Waypoint management ───────────────────────────────────
+function addWaypoint(lat, lon, alt, cmd) {
+  const id = ++wpIdCounter;
+  const wp = { id, lat, lon, alt: alt || DEFAULT_ALT, cmd: cmd || 'WAYPOINT', speed: CRUISE_SPEED, radius: 5, marker: null, selected: false };
+  waypoints.push(wp);
+  wp.marker = createMarker(wp);
+  renderWpList();
+  redrawPath();
+  updateStats();
+  selectWp(id);
+  saveMissionToStorage();
+  return wp;
+}
+
+function createMarker(wp) {
+  const icon = L.divIcon({
+    className: '',
+    html: markerHtml(wp),
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+  });
+  const m = L.marker([wp.lat, wp.lon], { icon, draggable: true, zIndexOffset: 500 })
+    .addTo(map)
+    .bindTooltip(() => `WP${wp.id} — ${wp.cmd}<br>Alt: ${wp.alt}m`, { direction: 'top' });
+
+  m.on('click', e => { L.DomEvent.stopPropagation(e); selectWp(wp.id); });
+  m.on('dragend', e => {
+    const pos = e.target.getLatLng();
+    wp.lat = pos.lat;
+    wp.lon = pos.lng;
+    renderWpList();
+    redrawPath();
+    updateStats();
+    saveMissionToStorage();
+    if (selectedWpId === wp.id) showDetail(wp);
+  });
+  return m;
+}
+
+function markerHtml(wp) {
+  const sel = selectedWpId === wp.id;
+  let label = wp.id;
+  if (wp.cmd === 'RTL') label = '⌂';
+  if (wp.cmd === 'LAND') label = '▼';
+  if (wp.cmd === 'TAKEOFF') label = '▲';
+  if (wp.cmd === 'LOITER_UNLIM' || wp.cmd === 'LOITER_TURNS' || wp.cmd === 'LOITER_TIME') label = '↻';
+  return `<div class="wp-marker-label${sel ? ' selected-marker' : ''}">${label}</div>`;
+}
+
+function refreshMarker(wp) {
+  if (!wp.marker) return;
+  wp.marker.setIcon(L.divIcon({
+    className: '',
+    html: markerHtml(wp),
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+  }));
+}
+
+function deleteWaypoint(id) {
+  const idx = waypoints.findIndex(w => w.id === id);
+  if (idx === -1) return;
+  waypoints[idx].marker.remove();
+  waypoints.splice(idx, 1);
+  if (selectedWpId === id) {
+    selectedWpId = null;
+    document.getElementById('wpDetail').classList.remove('visible');
+  }
+  renderWpList();
+  redrawPath();
+  saveMissionToStorage();
+  updateStats();
+}
+
+function selectWp(id) {
+  waypoints.forEach(w => { w.selected = w.id === id; refreshMarker(w); });
+  selectedWpId = id;
+  const wp = waypoints.find(w => w.id === id);
+  if (wp) showDetail(wp);
+  renderWpList();
+}
+
+function showDetail(wp) {
+  const panel = document.getElementById('wpDetail');
+  panel.classList.add('visible');
+  document.getElementById('wpDetailTitle').textContent = `Waypoint ${wp.id} — ${wp.cmd}`;
+  document.getElementById('detailAlt').value = wp.alt;
+  document.getElementById('detailCmd').value = wp.cmd;
+  document.getElementById('detailLat').value = wp.lat.toFixed(6);
+  document.getElementById('detailLon').value = wp.lon.toFixed(6);
+  document.getElementById('detailSpeed').value = wp.speed;
+  document.getElementById('detailRadius').value = wp.radius;
+}
+
+// Detail editor live updates
+['detailAlt', 'detailCmd', 'detailSpeed', 'detailRadius'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    const wp = waypoints.find(w => w.id === selectedWpId);
+    if (!wp) return;
+    wp.alt = parseFloat(document.getElementById('detailAlt').value) || DEFAULT_ALT;
+    wp.cmd = document.getElementById('detailCmd').value;
+    wp.speed = parseFloat(document.getElementById('detailSpeed').value) || CRUISE_SPEED;
+    wp.radius = parseFloat(document.getElementById('detailRadius').value) || 5;
+    document.getElementById('wpDetailTitle').textContent = `Waypoint ${wp.id} — ${wp.cmd}`;
+    refreshMarker(wp);
+    renderWpList();
+    updateStats();
+    saveMissionToStorage();
+  });
+});
+
+// ── Path line ─────────────────────────────────────────────
+function redrawPath() {
+  if (pathLine) pathLine.remove();
+  const pts = [[homeLat, homeLon], ...waypoints.map(w => [w.lat, w.lon])];
+  if (pts.length < 2) return;
+  pathLine = L.polyline(pts, {
+    color: '#f0bc59',
+    weight: 2,
+    dashArray: '6 4',
+    opacity: 0.8,
+  }).addTo(map);
+}
+
+// ── Render waypoint list ──────────────────────────────────
+function renderWpList() {
+  const list = document.getElementById('wpList');
+  const empty = document.getElementById('wpEmpty');
+
+  // Clear all rows (keep empty div)
+  Array.from(list.children).forEach(c => { if (!c.id) c.remove(); });
+
+  if (waypoints.length === 0) {
+    empty.style.display = 'flex';
+    return;
+  }
+  empty.style.display = 'none';
+
+  // Home row
+  const homeRow = document.createElement('div');
+  homeRow.className = 'mp-wp-row home-row';
+  homeRow.innerHTML = `
+    <span class="wp-num">H</span>
+    <span class="wp-type">HOME / LAUNCH</span>
+    <span class="wp-val">${DEFAULT_ALT}</span>
+    <span class="wp-val">${homeLat.toFixed(4)}</span>
+    <span class="wp-val">${homeLon.toFixed(4)}</span>
+    <span></span>
+  `;
+  list.insertBefore(homeRow, empty);
+
+  waypoints.forEach((wp, i) => {
+    const row = document.createElement('div');
+    row.className = 'mp-wp-row' + (selectedWpId === wp.id ? ' selected' : '');
+    row.innerHTML = `
+      <span class="wp-num">${wp.id}</span>
+      <span class="wp-type">${wp.cmd}</span>
+      <span class="wp-val">${wp.alt}m</span>
+      <span class="wp-val">${wp.lat.toFixed(4)}</span>
+      <span class="wp-val">${wp.lon.toFixed(4)}</span>
+      <button class="wp-del-btn" data-id="${wp.id}" title="Delete">×</button>
+    `;
+    row.addEventListener('click', e => {
+      if (!e.target.classList.contains('wp-del-btn')) {
+        selectWp(wp.id);
+        wp.marker.openTooltip();
+      }
+    });
+    list.insertBefore(row, empty);
+  });
+
+  // Delete buttons
+  list.querySelectorAll('.wp-del-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      deleteWaypoint(parseInt(btn.dataset.id));
+    });
+  });
+}
+
+// ── Stats ─────────────────────────────────────────────────
+function haversineDist(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function updateStats() {
+  const pts = [[homeLat, homeLon], ...waypoints.map(w => [w.lat, w.lon])];
+  let dist = 0;
+  for (let i = 1; i < pts.length; i++) {
+    dist += haversineDist(pts[i-1][0], pts[i-1][1], pts[i][0], pts[i][1]);
+  }
+  const distStr = dist > 1000 ? `${(dist/1000).toFixed(2)} km` : `${Math.round(dist)} m`;
+  const secs = dist / CRUISE_SPEED;
+  const timeStr = secs < 60 ? `${Math.round(secs)}s` : `${Math.floor(secs/60)}m ${Math.round(secs%60)}s`;
+
+  document.getElementById('statWpCount').textContent = waypoints.length;
+  document.getElementById('statDist').textContent = distStr;
+  document.getElementById('statTime').textContent = waypoints.length ? timeStr : '--';
+  document.getElementById('footWp').textContent = waypoints.length;
+  document.getElementById('footDist').textContent = distStr;
+  document.getElementById('footTime').textContent = waypoints.length ? timeStr : '--';
+}
+
+// ── Tool buttons ──────────────────────────────────────────
+const toolMap = {
+  toolAddWp:    { tool: 'addWp',     mode: 'ADD WAYPOINT', cursor: 'crosshair' },
+  toolAddLoiter:{ tool: 'addLoiter', mode: 'ADD LOITER',   cursor: 'crosshair' },
+  toolAddRTL:   { tool: 'addRTL',    mode: 'ADD RTL',      cursor: 'crosshair' },
+  toolAddLand:  { tool: 'addLand',   mode: 'ADD LAND',     cursor: 'crosshair' },
+  toolPan:      { tool: 'pan',       mode: 'PAN / SELECT', cursor: 'grab' },
+};
+
+Object.entries(toolMap).forEach(([btnId, cfg]) => {
+  document.getElementById(btnId).addEventListener('click', () => {
+    activeTool = cfg.tool;
+    document.querySelectorAll('.mp-tool-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(btnId).classList.add('active');
+    document.getElementById('modeDisplay').textContent = cfg.mode;
+    document.getElementById('statMode').innerHTML = `MODE <b>${cfg.mode}</b>`;
+    map.getContainer().style.cursor = cfg.cursor;
+  });
+});
+
+document.getElementById('toolZoomIn').addEventListener('click', () => map.zoomIn());
+document.getElementById('toolZoomOut').addEventListener('click', () => map.zoomOut());
+document.getElementById('toolCenter').addEventListener('click', () => map.setView([homeLat, homeLon], 17));
+
+// ── Mission localStorage autosave ─────────────────────────
+function saveMissionToStorage() {
+  try {
+    const data = {
+      home: { lat: homeLat, lon: homeLon },
+      waypoints: waypoints.map(w => ({ id: w.id, lat: w.lat, lon: w.lon, alt: w.alt, cmd: w.cmd, speed: w.speed, radius: w.radius }))
+    };
+    localStorage.setItem('airsent_mission_v1', JSON.stringify(data));
+  } catch(e) {}
+}
+
+// Auto-load saved mission on startup
+(function() {
+  try {
+    const raw = localStorage.getItem('airsent_mission_v1');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.waypoints && data.waypoints.length) {
+      data.waypoints.forEach(w => {
+        const id = ++wpIdCounter;
+        const wp = { id, lat: w.lat, lon: w.lon, alt: w.alt || DEFAULT_ALT, cmd: w.cmd || 'WAYPOINT', speed: w.speed || CRUISE_SPEED, radius: w.radius || 5, marker: null, selected: false };
+        waypoints.push(wp);
+        wp.marker = createMarker(wp);
+      });
+      renderWpList(); redrawPath(); updateStats();
+      if (waypoints.length) map.setView([waypoints[0].lat, waypoints[0].lon], 15);
+    }
+  } catch(e) {}
+})();
+
+// ── Top bar buttons ───────────────────────────────────────
+document.getElementById('btnClearAll').addEventListener('click', () => {
+  if (waypoints.length === 0) return;
+  if (!confirm('Clear all waypoints?')) return;
+  waypoints.forEach(w => w.marker.remove());
+  waypoints = [];
+  selectedWpId = null;
+  wpIdCounter = 0;
+  if (pathLine) { pathLine.remove(); pathLine = null; }
+  document.getElementById('wpDetail').classList.remove('visible');
+  renderWpList();
+  updateStats();
+});
+
+document.getElementById('btnReverse').addEventListener('click', () => {
+  waypoints.reverse();
+  renderWpList();
+  redrawPath();
+});
+
+document.getElementById('btnAutoAlt').addEventListener('click', () => {
+  waypoints.forEach(w => { w.alt = DEFAULT_ALT; });
+  renderWpList();
+  updateStats();
+  if (selectedWpId) {
+    const wp = waypoints.find(w => w.id === selectedWpId);
+    if (wp) showDetail(wp);
+  }
+});
+
+document.getElementById('btnSave').addEventListener('click', () => {
+  const data = {
+    home: { lat: homeLat, lon: homeLon },
+    waypoints: waypoints.map(w => ({
+      id: w.id, lat: w.lat, lon: w.lon, alt: w.alt,
+      cmd: w.cmd, speed: w.speed, radius: w.radius
+    }))
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'mission.json';
+  a.click();
+});
+
+document.getElementById('btnLoad').addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        waypoints.forEach(w => w.marker.remove());
+        waypoints = [];
+        wpIdCounter = 0;
+        if (pathLine) { pathLine.remove(); pathLine = null; }
+        if (data.home) { homeLat = data.home.lat; homeLon = data.home.lon; makeHomeMarker(); }
+        (data.waypoints || []).forEach(w => {
+          wpIdCounter = Math.max(wpIdCounter, w.id);
+          const wp = { ...w, marker: null, selected: false };
+          waypoints.push(wp);
+          wp.marker = createMarker(wp);
+        });
+        renderWpList();
+        redrawPath();
+        updateStats();
+      } catch(err) { alert('Invalid mission file'); }
+    };
+    reader.readAsText(file);
+  });
+  input.click();
+});
+
+document.getElementById('btnUpload').addEventListener('click', () => {
+  alert('Upload to drone: Connect via telemetry and use the MAVLink mission upload command.\n\nWaypoint count: ' + waypoints.length);
+});
+
+document.getElementById('btnDownload').addEventListener('click', () => {
+  alert('Download from drone: Connect via telemetry and the mission will be loaded automatically.');
+});
+
+// ── Init ──────────────────────────────────────────────────
+renderWpList();
+updateStats();
+</script>
+</body>
+</html>

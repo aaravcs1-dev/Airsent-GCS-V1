@@ -180,27 +180,27 @@ body{
 }
 
 .subbar{
-  margin-top:8px;
+  margin-top:4px;
   border:1px solid var(--line);
   background:linear-gradient(180deg, rgba(7,17,26,.94), rgba(4,10,16,.98));
   display:grid;
   grid-template-columns:repeat(5,1fr);
-  gap:6px;
-  padding:6px;
+  gap:4px;
+  padding:3px 4px;
 }
 
 .subbar-item{
   border:1px solid rgba(127,220,255,.08);
   background:rgba(10,20,30,.75);
-  padding:6px 8px;
-  font-size:12px;
+  padding:3px 8px;
+  font-size:11px;
   text-transform:uppercase;
   color:#d6e2eb;
-  min-height:44px;
+  min-height:26px;
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:8px;
+  gap:6px;
 }
 
 .subbar-item span{
@@ -259,15 +259,15 @@ body{
 }
 
 .dashboard{
-  margin-top:8px;
+  margin-top:4px;
   display:grid;
   grid-template-columns:220px minmax(220px, .68fr) minmax(700px, 2.55fr) minmax(250px, .9fr);
-  grid-template-rows:minmax(0, 1fr) 150px 190px;
+  grid-template-rows:minmax(0, 1fr) 130px 160px;
   grid-template-areas:
     "left attitude map right"
     "left mini mini mini"
     "left timeline timeline timeline";
-  gap:8px;
+  gap:6px;
   height:calc(100vh - 112px);
   width:100%;
   min-width:0;
@@ -354,7 +354,7 @@ body{
   grid-area:left;
   display:grid;
   gap:8px;
-  grid-template-rows:172px 132px 164px 1fr;
+  grid-template-rows:auto auto auto 1fr;
   min-height:0;
 }
 
@@ -582,6 +582,7 @@ body{
   border-radius:50%;
   position:relative;
   border:1px solid rgba(255,255,255,.10);
+  overflow:hidden;
   background:
     radial-gradient(circle at 50% 40%, rgba(255,255,255,.04), rgba(255,255,255,0) 58%),
     linear-gradient(180deg, rgba(7,18,28,.96), rgba(3,8,14,.98));
@@ -628,7 +629,11 @@ body{
 
 .horizon-disc{
   position:absolute;
-  inset:14px;
+  /* Oversized so pitch/roll transforms never expose an edge inside the clipped ring */
+  width:200%;
+  height:200%;
+  top:-50%;
+  left:-50%;
   border-radius:50%;
   overflow:hidden;
   background:#000;
@@ -715,7 +720,51 @@ body{
 }
 
 .attitude-side{
-  display:none;
+  padding:6px 10px 0;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+
+.rate-stats{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+}
+
+.rate-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:5px 10px;
+  border:1px solid rgba(127,220,255,.07);
+  background:rgba(10,20,30,.5);
+  border-radius:3px;
+}
+
+.rate-label{
+  font-size:9px;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  color:#4a7090;
+  font-weight:500;
+}
+
+.rate-val{
+  font-size:12px;
+  font-weight:700;
+  font-family:'DM Mono', 'Courier New', monospace;
+  color:#7fdcff;
+  text-align:right;
+}
+
+.rate-val.active{
+  color:#62ff9e;
+}
+
+.rate-val.high{
+  color:#f0bc59;
 }
 
 .attitude-bottom-strip{
@@ -960,7 +1009,7 @@ body{
   grid-area:right;
   display:grid;
   gap:8px;
-  grid-template-rows:96px minmax(0, 1fr);
+  grid-template-rows:auto minmax(0, 1fr);
   min-height:0;
 }
 
@@ -1026,7 +1075,7 @@ body{
 }
 
 .mini-graph-panel{
-  height:150px;
+  height:130px;
   min-width:0;
 }
 
@@ -1043,9 +1092,9 @@ body{
   grid-area:timeline;
   display:grid;
   grid-template-rows:auto 1fr 1fr;
-  gap:8px;
-  padding:8px;
-  height:190px;
+  gap:4px;
+  padding:6px;
+  height:160px;
   min-height:0;
 }
 
@@ -2552,4 +2601,249 @@ body[data-page="sensor-status"]{
 .top-item,
 .top-status-group {
   overflow: visible !important;
+}
+/* ═══════════════════════════════════════════════════════
+   LAUNCH MINI PANEL
+═══════════════════════════════════════════════════════ */
+.launch-mini-panel {
+  border: 1px solid rgba(127,220,255,.08);
+  transition: border-color .3s, box-shadow .3s, background .3s;
+}
+.launch-mini-panel.alert {
+  border-color: rgba(255,80,80,.5) !important;
+  box-shadow: 0 0 18px rgba(255,60,60,.25) !important;
+  animation: launch-panel-blink .6s infinite;
+}
+@keyframes launch-panel-blink {
+  0%,100% { background: rgba(255,40,40,.06); }
+  50%      { background: rgba(255,40,40,.01); }
+}
+
+.launch-mini-body {
+  padding: 8px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.launch-clock-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.launch-clock-label {
+  font-size: 11px;
+  color: #4a7090;
+  font-family: monospace;
+  letter-spacing: .5px;
+}
+.launch-clock {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: 'Share Tech Mono', 'DM Mono', monospace;
+  color: #7fdcff;
+  letter-spacing: 2px;
+  line-height: 1;
+  flex: 1;
+}
+.launch-clock.warn   { color: #ffb800; }
+.launch-clock.abort  { color: #ff3355; animation: lc-blink .5s infinite; }
+.launch-clock.launch { color: #00ff88; }
+@keyframes lc-blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.launch-status-badge {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border: 1px solid;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.launch-status-badge.standby  { color:#4a7090; border-color:#1a3040; }
+.launch-status-badge.counting { color:#7fdcff; border-color:rgba(127,220,255,.4); box-shadow:0 0 8px rgba(127,220,255,.15); }
+.launch-status-badge.hold     { color:#ffb800; border-color:rgba(255,184,0,.4); }
+.launch-status-badge.abort    { color:#ff3355; border-color:rgba(255,51,85,.4); animation:lc-blink .7s infinite; }
+.launch-status-badge.launch   { color:#00ff88; border-color:rgba(0,255,136,.4); }
+
+.launch-config-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+}
+.launch-cfg-label {
+  color: #4a7090;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.launch-cfg-input {
+  width: 44px;
+  height: 22px;
+  background: #0a1a28;
+  border: 1px solid rgba(127,220,255,.2);
+  color: #7fdcff;
+  font-family: monospace;
+  font-size: 11px;
+  text-align: center;
+  border-radius: 2px;
+  outline: none;
+}
+.launch-cfg-input:focus { border-color: #7fdcff; }
+
+.launch-fault-bar {
+  font-size: 9px;
+  font-family: monospace;
+  color: #ff5566;
+  letter-spacing: .5px;
+  min-height: 12px;
+  padding: 0 2px;
+}
+
+.launch-btn-row {
+  display: flex;
+  gap: 5px;
+}
+.launch-mini-btn {
+  flex: 1;
+  height: 28px;
+  border-radius: 2px;
+  border: 1px solid;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: 'DM Sans', Arial, sans-serif;
+  transition: all .12s;
+}
+.lbtn-start { border-color:rgba(0,255,136,.4); color:#00ff88; background:rgba(0,255,136,.06); }
+.lbtn-start:hover { background:rgba(0,255,136,.15); }
+.lbtn-start:disabled { opacity:.25; cursor:not-allowed; }
+.lbtn-hold  { border-color:rgba(255,184,0,.4); color:#ffb800; background:rgba(255,184,0,.06); }
+.lbtn-hold:hover { background:rgba(255,184,0,.14); }
+.lbtn-hold:disabled { opacity:.25; cursor:not-allowed; }
+.lbtn-abort { border-color:rgba(255,51,85,.4); color:#ff3355; background:rgba(255,51,85,.06); }
+.lbtn-abort:hover { background:rgba(255,51,85,.16); }
+.lbtn-abort:disabled { opacity:.25; cursor:not-allowed; }
+
+/* ═══════════════════════════════════════════════════════
+   COMPASS ROW (alongside attitude)
+═══════════════════════════════════════════════════════ */
+.attitude-compass-row {
+  display: flex;
+  justify-content: center;
+  padding: 4px 10px 0;
+}
+.attitude-compass-row .compass-card {
+  width: 100%;
+}
+
+/* ═══════════════════════════════════════════════════════
+   FLIGHT CONTROLS IN ATTITUDE BOTTOM STRIP
+═══════════════════════════════════════════════════════ */
+.flight-controls-strip {
+  padding: 6px 10px 8px;
+  border-top: 1px solid rgba(127,220,255,.08);
+  margin-top: 4px;
+}
+.flight-controls-strip .flight-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ATTITUDE PANEL — FILLS AVAILABLE SPACE
+   Horizon + Compass + Flight Controls spread evenly
+═══════════════════════════════════════════════════════ */
+
+/* Panel itself is full-height flex column */
+.attitude-panel {
+  display: flex !important;
+  flex-direction: column !important;
+  padding-bottom: 0 !important;
+}
+
+/* Tighter topline */
+.attitude-topline {
+  padding: 5px 10px 0 !important;
+  font-size: 10px !important;
+  flex-shrink: 0 !important;
+}
+.attitude-topline span { font-size: 12px !important; }
+
+/* Horizon section — takes 40% of remaining height */
+.attitude-layout {
+  flex: 0 0 auto !important;
+  grid-template-columns: 1fr !important;
+  padding: 6px 10px 4px !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+.attitude-wrap {
+  min-height: 0 !important;
+  flex: 0 0 auto !important;
+}
+.attitude-ring {
+  width: 140px !important;
+  height: 140px !important;
+}
+
+/* Compass row — centred, takes its natural size */
+.attitude-compass-row {
+  flex: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 10px !important;
+}
+.attitude-compass-row .compass-card {
+  width: 100% !important;
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 8px 8px 6px !important;
+  gap: 6px !important;
+}
+.modern-compass {
+  width: 100px !important;
+  height: 100px !important;
+}
+.modern-compass-label   { font-size: 9px !important; }
+.modern-compass-label.n { top: 13px !important; }
+.modern-compass-label.s { bottom: 13px !important; }
+.modern-compass-label.e { right: 13px !important; }
+.modern-compass-label.w { left: 13px !important; }
+.tick-n { top: 5px !important; height: 8px !important; }
+.tick-s { bottom: 5px !important; height: 8px !important; }
+.tick-e { right: 5px !important; width: 8px !important; }
+.tick-w { left: 5px !important; width: 8px !important; }
+.modern-compass-arrow   { height: 36px !important; width: 14px !important; }
+.arrow-head { border-left-width: 8px !important; border-right-width: 8px !important; border-bottom-width: 20px !important; }
+.arrow-tail { height: 16px !important; }
+.modern-compass-center  { width: 8px !important; height: 8px !important; }
+.compass-heading-text   { font-size: 11px !important; }
+
+/* Flight controls strip — fills remaining space at bottom */
+.flight-controls-strip {
+  flex: 0 0 auto !important;
+  padding: 6px 10px 10px !important;
+  margin-top: 0 !important;
+  border-top: 1px solid rgba(127,220,255,.08) !important;
+}
+.flight-controls-strip .flight-controls-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 5px !important;
+}
+.flight-controls-strip .flight-btn {
+  height: 36px !important;
+  font-size: 16px !important;
+  padding: 0 !important;
+  min-width: 0 !important;
 }

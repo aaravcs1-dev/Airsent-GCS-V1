@@ -1,23 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
-
+ 
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Drone GCS V1</title>
 <link rel="stylesheet" href="styles.css">
+<style>
+.lbtn-reset { border-color:rgba(127,220,255,.4); color:#7fdcff; background:rgba(127,220,255,.06); }
+.lbtn-reset:hover { background:rgba(127,220,255,.15); }
+</style>
 <link
   rel="stylesheet"
   href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
 />
-
+ 
 <style>
 .logo-dropdown {
   position: relative;
   display: inline-block;
   margin-right: 12px;
 }
-
+ 
 .logo-dropdown-btn {
   background: transparent;
   border: none;
@@ -26,11 +30,11 @@
   align-items: center;
   cursor: pointer;
 }
-
+ 
 .logo-dropdown-btn img {
   display: block;
 }
-
+ 
 .logo-dropdown-menu {
   display: none;
   position: absolute;
@@ -44,7 +48,7 @@
   border-radius: 8px;
   overflow: hidden;
 }
-
+ 
 .logo-dropdown-menu a {
   display: block;
   padding: 12px 14px;
@@ -54,26 +58,26 @@
   letter-spacing: 0.5px;
   background: #07111f;
 }
-
+ 
 .logo-dropdown-menu a:hover {
   background: #0d1b2d;
   color: #7fffd4;
 }
-
+ 
 .logo-dropdown:hover .logo-dropdown-menu,
 .logo-dropdown:focus-within .logo-dropdown-menu {
   display: block;
 }
 </style>
 </head>
-
+ 
 <body>
-
+ 
 <div class="app-shell">
-
+ 
 <header class="topbar">
 <div class="topbar-main">
-
+ 
 <div class="top-item status top-status-group">
   <div class="logo-dropdown">
     <button class="logo-dropdown-btn" type="button" aria-label="Open navigation menu">
@@ -81,25 +85,29 @@
     </button>
     <div class="logo-dropdown-menu">
       <a href="dashboard.html">Main Dashboard</a>
+      <a href="mission.html">Mission Planner</a>
+      <a href="preflight.html">Pre-Flight Checklist</a>
+      <a href="parameters.html">Parameters</a>
+      <a href="logs.html">Flight Logs</a>
+      <a href="launch.html">Launch Sequencer</a>
+      <a href="health.html">System Health</a>
       <a href="sensor-status.html">Sensor Status</a>
-      <a href="telemetry.html">Telemetry</a>
-      <a href="gps.html">GPS Page</a>
       <a href="actuators.html">Actuators</a>
     </div>
   </div>
-
+ 
   <span class="top-static-label">STATUS:</span>
-
+ 
   <select id="statusSelect" class="top-select status-select">
     <option value="armed" selected>ARMED</option>
     <option value="prearm">PRE ARM</option>
     <option value="disarmed">DISARMED</option>
   </select>
 </div>
-
+ 
 <div class="top-item top-mode-group">
   <span class="top-static-label">FLIGHT MODE:</span>
-
+ 
   <select id="flightModeSelect" class="top-select flightmode-select">
     <option>STABILIZE</option>
     <option>ALTHOLD</option>
@@ -119,15 +127,15 @@
     <option>SMART_RTL</option>
   </select>
 </div>
-
+ 
 <div class="top-item">
 GPS FIX: <span id="gpsFixTop">RTK FIX</span> <small>(<span id="satCountTop">19</span> SATS)</small>
 </div>
-
+ 
 <div class="top-item">
 EKF: <span id="ekfTop">HEALTHY</span>
 </div>
-
+ 
 <div class="top-item">
 BATTERY:
 <span id="topVoltage">15.8V</span>
@@ -136,17 +144,17 @@ BATTERY:
 <small>|</small>
 <span id="topBattery">71%</span>
 </div>
-
+ 
 <div class="top-item link-box">
 LINK: <span id="linkTop">GOOD</span>
 </div>
-
+ 
 </div>
 </header>
-
-
+ 
+ 
 <section class="subbar">
-
+ 
 <div class="subbar-item mission-subbar-item">
   <div class="subbar-mainline">
     <span class="subbar-label">MISSION TIME:</span>
@@ -157,74 +165,114 @@ LINK: <span id="linkTop">GOOD</span>
     <button id="missionResetBtn" class="subbar-btn warning" data-confirm="Reset mission timer?">↺</button>
   </div>
 </div>
-
+ 
 <div class="subbar-item">
 MISSION DISTANCE: <span id="missionDistanceVal">23.1</span>
 </div>
-
+ 
 <div class="subbar-item">
 CPU LOAD: <span id="cpuLoadTop">23%</span>
 </div>
-
+ 
 <div class="subbar-item">
 REC: <span>185MB</span>
 </div>
-
+ 
 <div class="subbar-item">
 FPS: <span>60.60</span>
 </div>
-
+ 
 </section>
-
-
-
+ 
+ 
+ 
 <main class="dashboard">
-
-
+ 
+ 
 <aside class="left-column">
-
+ 
+<!-- ── LAUNCH SEQUENCER MINI ─────────────────────── -->
+<section class="panel launch-mini-panel" id="launchMiniPanel">
+ 
+<div class="launch-mini-body" style="position:relative">
+ 
+  <div class="launch-clock-row">
+    <span class="launch-clock-label">T−</span>
+    <span class="launch-clock" id="lmClock">03:00</span>
+    <span class="launch-status-badge standby" id="lmStatus">STANDBY</span>
+    <a href="launch.html" style="font-size:9px;color:#7fdcff;text-decoration:none;letter-spacing:.5px;opacity:.55;margin-left:auto;flex-shrink:0">FULL →</a>
+  </div>
+ 
+  <div class="launch-fault-bar" id="lmFaultBar"></div>
+  <div id="lmHandoverBadge" style="display:none;font-size:9px;font-weight:700;letter-spacing:1.5px;color:#ffb800;font-family:monospace;padding:1px 2px;">⚡ VEHICLE HANDOVER</div>
+ 
+  <div class="launch-btn-row">
+    <button class="launch-mini-btn lbtn-start" id="lmBtnStart">▶ GO</button>
+    <button class="launch-mini-btn lbtn-hold"  id="lmBtnHold"  disabled>⏸</button>
+    <button class="launch-mini-btn lbtn-abort" id="lmBtnAbort" disabled>■ ABORT</button>
+    <button class="launch-mini-btn lbtn-reset" id="lmBtnReset" style="display:none">↺ RESET</button>
+  </div>
+ 
+  <!-- Password modal for reset -->
+  <div id="lmResetModal" style="display:none;position:absolute;inset:0;z-index:999;background:rgba(0,0,0,.82);border-radius:4px;display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:10px;">
+    <div style="font-size:9px;color:#ff5566;letter-spacing:1.5px;font-weight:700">RESET AUTHORIZATION</div>
+    <input id="lmResetPwd" type="password" placeholder="password" style="width:100%;background:#0a1520;border:1px solid rgba(255,83,85,.4);color:#fff;font-size:10px;padding:4px 6px;border-radius:2px;text-align:center;outline:none;font-family:monospace;letter-spacing:2px;"/>
+    <div style="display:flex;gap:5px;width:100%">
+      <button id="lmResetConfirm" class="launch-mini-btn lbtn-reset" style="flex:1">CONFIRM</button>
+      <button id="lmResetCancel"  class="launch-mini-btn lbtn-hold"  style="flex:1">CANCEL</button>
+    </div>
+    <div id="lmResetErr" style="font-size:8px;color:#ff5566;letter-spacing:1px;min-height:10px"></div>
+  </div>
+ 
+</div>
+ 
+</section>
+ 
+ 
+<!-- ── MOTOR OUTPUTS ──────────────────────────────── -->
 <section class="panel motor-panel">
-
+ 
 <div class="panel-title">
 MOTOR OUTPUTS
 </div>
-
+ 
 <div class="motor-header">
 <span>PWM</span>
 <span>OUT%</span>
 </div>
-
+ 
 <div class="motor-row">
 <span>M1 <b id="m1pwm">1472</b></span>
 <span id="m1out">41%</span>
 </div>
-
+ 
 <div class="motor-row">
 <span>M2 <b id="m2pwm">1486</b></span>
 <span id="m2out">42%</span>
 </div>
-
+ 
 <div class="motor-row">
 <span>M3 <b id="m3pwm">1468</b></span>
 <span id="m3out">40%</span>
 </div>
-
+ 
 <div class="motor-row">
 <span>M4 <b id="m4pwm">1493</b></span>
 <span id="m4out">43%</span>
 </div>
-
+ 
 </section>
-
-
+ 
+ 
+<!-- ── FAILSAFE ───────────────────────────────────── -->
 <section class="panel failsafe-panel">
-
+ 
 <div class="panel-title">
 FAILSAFE
 </div>
-
+ 
 <div class="failsafe-list">
-
+ 
   <div class="failsafe-row">
     <span>RC LOSS</span>
     <select class="failsafe-select">
@@ -234,7 +282,7 @@ FAILSAFE
       <option>SMART RTL</option>
     </select>
   </div>
-
+ 
   <div class="failsafe-row">
     <span>LOW BATTERY</span>
     <select class="failsafe-select">
@@ -244,7 +292,7 @@ FAILSAFE
       <option>SMART RTL</option>
     </select>
   </div>
-
+ 
   <div class="failsafe-row">
     <span>GCS LINK</span>
     <select class="failsafe-select">
@@ -254,7 +302,7 @@ FAILSAFE
       <option>SMART RTL</option>
     </select>
   </div>
-
+ 
   <div class="failsafe-row">
     <span>GEO FENCE</span>
     <select class="failsafe-select">
@@ -264,36 +312,14 @@ FAILSAFE
       <option>SMART RTL</option>
     </select>
   </div>
-
+ 
 </div>
-
+ 
 </section>
-
-
-
-<section class="panel flight-controls-panel">
-
-<div class="panel-title">
-FLIGHT CONTROL
-</div>
-
-<div class="flight-controls-grid">
-  <button class="flight-btn" data-command="ARM / DISARM" data-confirm="Confirm ARM / DISARM command?">⏻</button>
-  <button class="flight-btn" data-command="TAKEOFF" data-confirm="Confirm TAKEOFF command?">⬆</button>
-  <button class="flight-btn" data-command="LAND" data-confirm="Confirm LAND command?">⬇</button>
-  <button class="flight-btn" data-command="HOLD" data-confirm="Confirm HOLD command?">⏸</button>
-
-  <button class="flight-btn" data-command="RETURN TO BASE" data-confirm="Confirm RETURN TO BASE command?">⌂</button>
-  <button class="flight-btn" data-command="MISSION START" data-confirm="Confirm MISSION START command?">▶</button>
-  <button class="flight-btn" data-command="GUIDED" data-confirm="Confirm GUIDED command?">◎</button>
-  <button class="flight-btn emergency-btn" data-command="EMERGENCY STOP" data-confirm="Confirm EMERGENCY STOP?">■</button>
-</div>
-
-</section>
-
-
+ 
+ 
 <section class="panel events-panel">
-
+ 
 <div class="panel-title panel-title-with-actions">
   <span>EVENTS LOG</span>
   <div class="panel-action-group">
@@ -301,62 +327,62 @@ FLIGHT CONTROL
     <button id="eventsResetBtn" class="panel-action-btn warning" data-confirm="Clear event log?">↺</button>
   </div>
 </div>
-
+ 
 <div class="event-item">
 <span>12:45:10</span>
 <span>MODE CHANGE: POSHOLD</span>
 </div>
-
+ 
 <div class="event-item">
 <span>12:44:50</span>
 <span>GPS FIX ACQUIRED</span>
 </div>
-
+ 
 <div class="event-item">
 <span>12:44:20</span>
 <span>SYSTEM ARMED</span>
 </div>
-
+ 
 <div class="event-item">
 <span>12:44:00</span>
 <span>PRE-FLIGHT CHECKS PASSED</span>
 </div>
-
+ 
 </section>
-
+ 
 </aside>
-
-
-
+ 
+ 
+ 
 <section class="panel attitude-panel">
-
+ 
 <div class="attitude-topline">
 <div>ROLL <span id="rollVal">+2.4°</span></div>
 <div>HEADING <span id="headingVal">121°</span></div>
 <div>PITCH <span id="pitchVal">-1.2°</span></div>
 </div>
-
-
+ 
+ 
 <div class="attitude-layout">
-
+ 
 <div class="attitude-wrap">
-
+ 
 <div class="attitude-ring">
-
+ 
 <div class="attitude-bezel"></div>
-
+ 
 <div class="tick tick-top"></div>
 <div class="tick tick-right"></div>
 <div class="tick tick-bottom"></div>
 <div class="tick tick-left"></div>
-
+ 
 <div class="attitude-mark mark-30-left"></div>
 <div class="attitude-mark mark-30-right"></div>
 <div class="attitude-mark mark-15-left"></div>
 <div class="attitude-mark mark-15-right"></div>
-
+ 
 <div class="horizon-disc" id="horizonDisc">
-
+ 
 <div class="sky"></div>
 <div class="ground"></div>
 <div class="horizon-line"></div>
@@ -365,116 +391,114 @@ FLIGHT CONTROL
 <div class="pitch-ladder pitch-down-1"></div>
 <div class="pitch-ladder pitch-down-2"></div>
 <div class="crosshair"></div>
-
+ 
 </div>
-
+ 
 <div class="attitude-glow"></div>
-
+ 
 </div>
-
+ 
 </div>
-
-
-<div class="attitude-side"></div>
-
+ 
+ 
+<div class="attitude-side" style="display:none"></div>
+ 
 </div>
-
-
-<div class="attitude-bottom-strip compass-strip">
-
+ 
+<!-- Compass inline with horizon, side by side -->
+<div class="attitude-compass-row">
+ 
 <div class="compass-card">
-
 <div class="modern-compass" id="miniCompass">
   <div class="modern-compass-ring"></div>
   <div class="modern-compass-inner"></div>
-
   <div class="modern-tick tick-n"></div>
   <div class="modern-tick tick-e"></div>
   <div class="modern-tick tick-s"></div>
   <div class="modern-tick tick-w"></div>
-
   <div class="modern-compass-label n">N</div>
   <div class="modern-compass-label e">E</div>
   <div class="modern-compass-label s">S</div>
   <div class="modern-compass-label w">W</div>
-
   <div class="modern-compass-arrow" id="miniCompassArrow">
     <div class="arrow-head"></div>
     <div class="arrow-tail"></div>
   </div>
-
   <div class="modern-compass-center"></div>
 </div>
-
-<div class="compass-heading-text">HDG <span id="compassHeadingText">121°</span></div>
+<div class="compass-heading-text">HDG <span id="compassHeadingText">0°</span></div>
 </div>
-
+ 
 </div>
-
+ 
+<!-- Flight controls now live at bottom of attitude panel -->
+<div class="attitude-bottom-strip flight-controls-strip">
+<div class="flight-controls-grid">
+  <button class="flight-btn" data-command="ARM / DISARM" data-confirm="Confirm ARM / DISARM command?">⏻</button>
+  <button class="flight-btn" data-command="TAKEOFF" data-confirm="Confirm TAKEOFF command?">⬆</button>
+  <button class="flight-btn" data-command="LAND" data-confirm="Confirm LAND command?">⬇</button>
+  <button class="flight-btn" data-command="HOLD" data-confirm="Confirm HOLD command?">⏸</button>
+  <button class="flight-btn" data-command="RETURN TO BASE" data-confirm="Confirm RETURN TO BASE command?">⌂</button>
+  <button class="flight-btn" data-command="MISSION START" data-confirm="Confirm MISSION START command?">▶</button>
+  <button class="flight-btn" data-command="GUIDED" data-confirm="Confirm GUIDED command?">◎</button>
+  <button class="flight-btn emergency-btn" data-command="EMERGENCY STOP" data-confirm="Confirm EMERGENCY STOP?">■</button>
+</div>
+</div>
+ 
 </section>
-
-
-
+ 
+ 
+ 
 <section class="panel map-panel">
-
+ 
+<!-- Map topline: alt, lidar, lat, lon, spd, lt -->
 <div class="map-topline">
-
-<div>ALT: <span id="altVal">85.8 m</span></div>
-<div>SPD: <span id="spdVal">5.9 m/s</span></div>
-<div>LT: <span id="ltVal">11</span></div>
-
+  <div>BARO: <span id="altVal">0.0 m</span></div>
+  <div>LIDAR: <span id="lidarAltVal">-- m</span></div>
+  <div>LAT: <span id="latVal">0.0000°</span></div>
+  <div>LON: <span id="lonVal">0.0000°</span></div>
+  <div>SPD: <span id="spdVal">0.0 m/s</span></div>
+  <div>LT: <span id="ltVal">0</span></div>
 </div>
-
-
+ 
+<!-- Map fills all remaining space -->
 <div id="leafletMap" class="map-body real-map"></div>
-
-
-<div class="map-meta">
-
-<div>MODE: <span id="mapModeVal">POSHOLD</span></div>
-<div>LAT: <span id="latVal">33.4242°</span></div>
-<div>LON: <span id="lonVal">-111.9281°</span></div>
-
-</div>
-
-
-<div class="map-footer">
-
-<div>POSITION: <span id="positionVal">17.20 WAYPOINT</span></div>
-<div>MSL: <span id="mslVal">-1.5m</span></div>
-
-</div>
-
+ 
+<!-- Hidden elements to keep JS references alive -->
+<span id="mapModeVal"  style="display:none">POSHOLD</span>
+<span id="positionVal" style="display:none">NO DATA</span>
+<span id="mslVal"      style="display:none">0.0m</span>
+ 
 </section>
-
-
-
+ 
+ 
+ 
 <aside class="right-column">
-
+ 
 <section class="panel side-panel">
-
+ 
 <div class="panel-title">
 RC / TELEMETRY
 </div>
-
+ 
 <div id="rcTelemetryState" class="side-big green-text">
 LINK GOOD
 </div>
-
+ 
 <div class="side-mini-row">
 <span>RSSI</span>
 <b id="rssiVal">84.2</b>
 </div>
-
+ 
 </section>
-
-
+ 
+ 
 <section class="panel side-panel">
-
+ 
 <div class="panel-title">
 SENSOR STATUS
 </div>
-
+ 
 <div class="sensor-row"><span>GPS</span><b id="sensorGps" class="sensor-ok">NOMINAL</b></div>
 <div class="sensor-row"><span>LIDAR</span><b id="sensorLidar" class="sensor-ok">NOMINAL</b></div>
 <div class="sensor-row"><span>OPTICAL FLOW</span><b id="sensorOpticalFlow" class="sensor-ok">NOMINAL</b></div>
@@ -482,75 +506,75 @@ SENSOR STATUS
 <div class="sensor-row"><span>BATTERY</span><b id="sensorBattery" class="sensor-ok">NOMINAL</b></div>
 <div class="sensor-row"><span>IMU</span><b id="sensorImu" class="sensor-ok">NOMINAL</b></div>
 <div class="sensor-row"><span>BAROMETER</span><b id="sensorBarometer" class="sensor-ok">NOMINAL</b></div>
-
+ 
 </section>
-
+ 
 </aside>
-
-
-
+ 
+ 
+ 
 <section class="mini-graphs">
-
+ 
 <div class="panel mini-graph-panel">
 <div class="panel-title">ROLL / PITCH</div>
 <canvas id="chart1"></canvas>
 </div>
-
+ 
 <div class="panel mini-graph-panel">
 <div class="panel-title">ALTITUDE / V.SPEED</div>
 <canvas id="chart2"></canvas>
 </div>
-
+ 
 <div class="panel mini-graph-panel">
 <div class="panel-title">VOLTAGE / CURRENT</div>
 <canvas id="chart3"></canvas>
 </div>
-
+ 
 <div class="panel mini-graph-panel">
 <div class="panel-title">GPS SATS / HDOP</div>
 <canvas id="chart4"></canvas>
 </div>
-
+ 
 <div class="panel mini-graph-panel">
 <div class="panel-title">VIBRATION LEVEL</div>
 <canvas id="chart5"></canvas>
 </div>
-
+ 
 </section>
-
-
-
+ 
+ 
+ 
 <section class="panel bottom-timeline">
-
+ 
 <div class="panel-title bottom-title">
 LIVE TELEMETRY TIMELINE
 </div>
-
+ 
 <div class="timeline-block">
-
+ 
 <div class="timeline-label">
 MOTOR OUTPUT AVG / BATTERY CURRENT / VOLTAGE SAG
 </div>
-
+ 
 <canvas id="chart6"></canvas>
-
+ 
 </div>
-
+ 
 <div class="timeline-block">
-
+ 
 <div class="timeline-label">
 GPS QUALITY / ALTITUDE / VIBRATION
 </div>
-
+ 
 <canvas id="chart7"></canvas>
-
+ 
 </div>
-
+ 
 </section>
-
+ 
 </main>
 </div>
-
+ 
 <div id="confirmOverlay" class="confirm-overlay hidden">
   <div class="confirm-modal">
     <div class="confirm-title">CONFIRM ACTION</div>
@@ -561,11 +585,255 @@ GPS QUALITY / ALTITUDE / VIBRATION
     </div>
   </div>
 </div>
-
+ 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="script.js"></script>
 <script src="telemetry.js"></script>
-
-
+ 
+<script>
+// ── LAUNCH MINI ───────────────────────────────────────────
+(function() {
+  const LS_KEY     = 'airsent_launch_state_v2';
+  const LS_HANDOFF = 'airsent_launch_handoff';
+  const CMD_KEY    = 'airsent_launch_cmd_v1';
+ 
+  function el(id) { return document.getElementById(id); }
+  function pad(n)  { return String(n).padStart(2,'0'); }
+ 
+  let state            = 'standby';
+  let totalSecs        = 180;
+  let remainingSecs    = 180;
+  let launchElapsed    = 0;
+  let abortReason      = '';
+  let ticker           = null;
+  let handoverSecs     = 120;   // mirrors LS_HANDOFF
+  let handoverFired    = false; // prevent double-fire per session
+ 
+  function getConfiguredTotal() {
+    try { const h = parseInt(localStorage.getItem(LS_HANDOFF)); if (h > 0) return h; } catch(e) {}
+    return 180;
+  }
+ 
+  function save() {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        state, remaining: remainingSecs, total: totalSecs,
+        launchElapsed, abortReason, ts: Date.now()
+      }));
+    } catch(e) {}
+  }
+ 
+  function render() {
+    const clock = el('lmClock');
+    const badge = el('lmStatus');
+    const fb    = el('lmFaultBar');
+    const panel = el('launchMiniPanel');
+    if (!clock) return;
+ 
+    if (state === 'launch') {
+      clock.textContent = 'T+' + pad(Math.floor(launchElapsed/60)) + ':' + pad(launchElapsed%60);
+      clock.className = 'launch-clock launch';
+    } else if (state === 'counting' || state === 'hold') {
+      clock.textContent = pad(Math.floor(remainingSecs/60)) + ':' + pad(remainingSecs%60);
+      clock.className = 'launch-clock' + (state === 'hold' ? ' warn' : '');
+    } else if (state === 'abort') {
+      clock.textContent = pad(Math.floor(remainingSecs/60)) + ':' + pad(remainingSecs%60);
+      clock.className = 'launch-clock abort';
+    } else {
+      clock.textContent = pad(Math.floor(totalSecs/60)) + ':' + pad(totalSecs%60);
+      clock.className = 'launch-clock';
+    }
+ 
+    if (badge) {
+      var labels = {standby:'STANDBY',counting:'COUNTING',hold:'HOLD',abort:'ABORT',launch:'LIFTOFF'};
+      badge.textContent = labels[state] || state.toUpperCase();
+      badge.className = 'launch-status-badge ' + state;
+    }
+ 
+    if (fb) {
+      if      (state === 'hold')   { fb.textContent = '\u23f8 HOLD';                      fb.style.color = '#ffb800'; }
+      else if (state === 'abort')  { fb.textContent = '\u2717 ' + (abortReason||'ABORTED'); fb.style.color = '#ff5566'; }
+      else if (state === 'launch') { fb.textContent = '\u2713 LIFTOFF';                    fb.style.color = '#00ff88'; }
+      else                         { fb.textContent = ''; }
+    }
+ 
+    if (panel) panel.classList.toggle('alert', state === 'abort');
+    var hb = el('lmHandoverBadge');
+    if (hb) hb.style.display = (state === 'counting' || state === 'hold' || state === 'launch') && handoverFired ? '' : 'none';
+ 
+    var bs = el('lmBtnStart'), bh = el('lmBtnHold'), ba = el('lmBtnAbort'), br = el('lmBtnReset');
+    if (bs) bs.disabled = state !== 'standby';
+    if (bh) { bh.disabled = state !== 'counting' && state !== 'hold'; bh.textContent = state === 'hold' ? '\u25b6' : '\u23f8'; }
+    if (ba) { ba.disabled = state === 'standby' || state === 'launch'; ba.style.display = state === 'abort' ? 'none' : ''; }
+    if (br) br.style.display = state === 'abort' ? '' : 'none';
+  }
+ 
+  function stopTicker() {
+    if (ticker) { clearInterval(ticker); ticker = null; }
+  }
+ 
+  function runCountTicker() {
+    stopTicker();
+    ticker = setInterval(function() {
+      remainingSecs = Math.max(0, remainingSecs - 1);
+      if (remainingSecs <= 0) {
+        stopTicker();
+        state = 'launch';
+        save(); render();
+        ticker = setInterval(function() { launchElapsed++; save(); render(); }, 1000);
+        return;
+      }
+      // Check for handover crossing
+      if (!handoverFired && remainingSecs <= handoverSecs) {
+        handoverFired = true;
+        if (typeof window.prependEvent === 'function') {
+          window.prependEvent('VEHICLE HANDOVER — T-' + pad(Math.floor(remainingSecs/60)) + ':' + pad(remainingSecs%60));
+        }
+      }
+      save(); render();
+    }, 1000);
+  }
+ 
+  function doStart() {
+    if (state !== 'standby') return;
+    totalSecs     = getConfiguredTotal();
+    remainingSecs = totalSecs;
+    launchElapsed = 0;
+    abortReason   = '';
+    handoverFired = false;
+    try { var h = parseInt(localStorage.getItem('airsent_launch_handover')); if (h > 0) handoverSecs = h; } catch(e) {}
+    state         = 'counting';
+    save(); render();
+    runCountTicker();
+    try { localStorage.setItem(CMD_KEY, JSON.stringify({ cmd:'start', ts: Date.now() })); } catch(e) {}
+  }
+ 
+  function doHold() {
+    if (state !== 'counting') return;
+    stopTicker();
+    state = 'hold';
+    save(); render();
+    try { localStorage.setItem(CMD_KEY, JSON.stringify({ cmd:'hold', ts: Date.now() })); } catch(e) {}
+  }
+ 
+  function doResume() {
+    if (state !== 'hold') return;
+    state = 'counting';
+    save(); render();
+    runCountTicker();
+    try { localStorage.setItem(CMD_KEY, JSON.stringify({ cmd:'resume', ts: Date.now() })); } catch(e) {}
+  }
+ 
+  function doAbort() {
+    if (state === 'standby') return;
+    stopTicker();
+    abortReason = 'Aborted from dashboard';
+    state = 'abort';
+    save(); render();
+    try { localStorage.setItem(CMD_KEY, JSON.stringify({ cmd:'abort', ts: Date.now() })); } catch(e) {}
+  }
+ 
+  el('lmBtnStart').addEventListener('click', doStart);
+  el('lmBtnHold').addEventListener('click',  function() { if (state==='counting') doHold(); else if (state==='hold') doResume(); });
+  el('lmBtnAbort').addEventListener('click', doAbort);
+ 
+  // ── Reset (password protected) ────────────────────────────
+  var RESET_PWD = 'airsent';
+ 
+  function showResetModal() {
+    var m = el('lmResetModal');
+    if (!m) return;
+    m.style.display = 'flex';
+    var inp = el('lmResetPwd');
+    if (inp) { inp.value = ''; inp.focus(); }
+    var err = el('lmResetErr');
+    if (err) err.textContent = '';
+  }
+ 
+  function hideResetModal() {
+    var m = el('lmResetModal');
+    if (m) m.style.display = 'none';
+  }
+ 
+  function doReset() {
+    stopTicker();
+    state = 'standby';
+    totalSecs = getConfiguredTotal();
+    remainingSecs = totalSecs;
+    launchElapsed = 0;
+    abortReason = '';
+    handoverFired = false;
+    save(); render();
+    var br = el('lmBtnReset');
+    if (br) br.style.display = 'none';
+    // tell launch.html to reset too
+    try { localStorage.setItem(CMD_KEY, JSON.stringify({ cmd:'reset', ts: Date.now() })); } catch(e) {}
+  }
+ 
+  el('lmBtnReset').addEventListener('click', showResetModal);
+ 
+  el('lmResetConfirm').addEventListener('click', function() {
+    var inp = el('lmResetPwd');
+    if (!inp) return;
+    if (inp.value.trim() === RESET_PWD) {
+      hideResetModal();
+      doReset();
+    } else {
+      var err = el('lmResetErr');
+      if (err) { err.textContent = 'INCORRECT PASSWORD'; }
+      inp.value = '';
+      inp.focus();
+    }
+  });
+ 
+  el('lmResetCancel').addEventListener('click', hideResetModal);
+ 
+  el('lmResetPwd').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') el('lmResetConfirm').click();
+    if (e.key === 'Escape') hideResetModal();
+  });
+ 
+  // On load: restore active session or start fresh
+  totalSecs = getConfiguredTotal();
+  try {
+    var raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      var d = JSON.parse(raw);
+      if (d && d.state && d.state !== 'standby' && d.state !== 'abort') {
+        state         = d.state;
+        totalSecs     = d.total || totalSecs;
+        remainingSecs = d.remaining || 0;
+        launchElapsed = d.launchElapsed || 0;
+        abortReason   = d.abortReason || '';
+        if (state === 'counting' && d.ts) {
+          var gap = Math.floor((Date.now() - d.ts) / 1000);
+          remainingSecs = Math.max(0, remainingSecs - gap);
+          if (remainingSecs <= 0) { state = 'launch'; }
+        }
+        if (state === 'launch' && d.ts) {
+          launchElapsed += Math.floor((Date.now() - d.ts) / 1000);
+        }
+        if (state === 'counting') { runCountTicker(); }
+        else if (state === 'launch') {
+          ticker = setInterval(function() { launchElapsed++; save(); render(); }, 1000);
+        }
+      } else {
+        remainingSecs = totalSecs;
+        state = 'standby';
+        save();
+      }
+    } else {
+      remainingSecs = totalSecs;
+      state = 'standby';
+      save();
+    }
+  } catch(e) {
+    remainingSecs = totalSecs;
+    state = 'standby';
+    save();
+  }
+  render();
+})();
+</script>
 </body>
 </html>

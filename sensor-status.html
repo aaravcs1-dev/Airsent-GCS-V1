@@ -1,363 +1,873 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Drone GCS V1 | Sensor Status</title>
-  <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Airsent — Sensor Status</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  <style>
-    .topbar,
-    .topbar-main,
-    .top-item,
-    .top-status-group {
-      overflow: visible !important;
-    }
+:root {
+  --bg0: #060c12;
+  --bg1: #0a131c;
+  --bg2: #0e1a26;
+  --line: rgba(255,255,255,.06);
+  --green: #4ade80;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --blue: #60a5fa;
+  --muted: #4b6275;
+  --text: #e2eaf0;
+  --text2: #7a95a8;
+}
 
-    .logo-dropdown {
-      position: relative;
-      display: inline-block;
-      margin-right: 12px;
-      z-index: 10000;
-    }
+body {
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg0);
+  color: var(--text);
+  font-family: 'DM Sans', Arial, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
 
-    .logo-dropdown-btn {
-      background: transparent;
-      border: none;
-      padding: 0;
-      margin: 0;
-      display: flex;
-      align-items: center;
-      cursor: pointer;
-    }
+/* ── Nav ─────────────────────────────────────────────────── */
+.logo-dropdown { position:relative; display:inline-block; }
+.logo-dropdown-btn { background:transparent; border:none; padding:0; display:flex; align-items:center; cursor:pointer; }
+.logo-dropdown-menu {
+  display:none; position:absolute; top:calc(100% + 6px); left:0;
+  min-width:210px; background:#0a131c;
+  border:1px solid rgba(255,255,255,.08); border-radius:8px; overflow:hidden; z-index:9999;
+  box-shadow: 0 16px 48px rgba(0,0,0,.6);
+}
+.logo-dropdown-menu a { display:block; padding:10px 14px; color:#c8dce8; text-decoration:none; font-size:12px; letter-spacing:.3px; }
+.logo-dropdown-menu a:hover { background:rgba(255,255,255,.05); color:#fff; }
+.logo-dropdown:hover .logo-dropdown-menu, .logo-dropdown:focus-within .logo-dropdown-menu { display:block; }
 
-    .logo-dropdown-btn img {
-      display: block;
-    }
+/* ── Top bar ─────────────────────────────────────────────── */
+.topbar {
+  flex-shrink: 0;
+  height: 48px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 6px;
+}
+.topbar-logo { margin-right: 8px; }
+.topbar-divider { width: 1px; height: 20px; background: var(--line); margin: 0 6px; }
+.topbar-label {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.topbar-val {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+}
+.topbar-val.green { color: var(--green); }
+.topbar-val.amber { color: var(--amber); }
+.topbar-val.red   { color: var(--red); }
+.topbar-val.blue  { color: var(--blue); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 
-    .logo-dropdown-menu {
-      display: none;
-      position: absolute;
-      top: calc(100% + 8px);
-      left: 0;
-      min-width: 220px;
-      background: #07111f;
-      border: 1px solid rgba(0, 255, 170, 0.25);
-      box-shadow: 0 0 12px rgba(0, 255, 170, 0.12);
-      border-radius: 8px;
-      overflow: hidden;
-      z-index: 10001;
-    }
+/* ── Body ────────────────────────────────────────────────── */
+.body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) 220px;
+  grid-template-rows: 1fr 1fr 1fr 90px;
+  gap: 1px;
+  background: var(--line);
+  overflow: hidden;
+}
 
-    .logo-dropdown-menu a {
-      display: block;
-      padding: 12px 14px;
-      color: #d7e6f5;
-      text-decoration: none;
-      font-size: 14px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      background: #07111f;
-    }
+/* ── Sensor card ─────────────────────────────────────────── */
+.card {
+  background: var(--bg0);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
 
-    .logo-dropdown-menu a:hover {
-      background: #0d1b2d;
-      color: #7fffd4;
-    }
+/* top color stripe */
+.card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--muted);
+  opacity: .4;
+  transition: all .3s;
+}
+.card.ok::after    { background: var(--green); opacity: 1; }
+.card.warn::after  { background: var(--amber); opacity: 1; }
+.card.fault::after { background: var(--red);   opacity: 1; }
 
-    .logo-dropdown:hover .logo-dropdown-menu,
-    .logo-dropdown:focus-within .logo-dropdown-menu {
-      display: block;
-    }
-  </style>
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.card-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.card-sub {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: .3px;
+  margin-top: 1px;
+}
+.chip {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid;
+}
+.chip.ok     { color: var(--green); border-color: rgba(74,222,128,.3); background: rgba(74,222,128,.08); }
+.chip.warn   { color: var(--amber); border-color: rgba(251,191,36,.3);  background: rgba(251,191,36,.08); }
+.chip.fault  { color: var(--red);   border-color: rgba(248,113,113,.3); background: rgba(248,113,113,.08); }
+.chip.offline{ color: var(--muted); border-color: rgba(75,98,117,.2);   background: transparent; }
+
+/* Metric list */
+.card-metrics {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  flex: 1;
+  border-bottom: 1px solid var(--line);
+  min-height: 0;
+  gap: 8px;
+}
+.row:last-child { border-bottom: none; }
+.row-label {
+  font-size: 10px;
+  color: var(--text2);
+  font-weight: 400;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.row-val {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+  color: var(--text);
+  text-align: right;
+}
+.row-val.green { color: var(--green); }
+.row-val.amber { color: var(--amber); }
+.row-val.red   { color: var(--red); }
+.row-val.blue  { color: var(--blue); }
+.row-val.muted { color: var(--muted); }
+
+/* bar row */
+.bar-row {
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-height: 0;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.bar-row:last-child { border-bottom: none; }
+.bar-track {
+  flex: 1;
+  height: 4px;
+  background: var(--bg2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .5s ease;
+  background: var(--green);
+}
+.bar-fill.amber { background: var(--amber); }
+.bar-fill.red   { background: var(--red); }
+.bar-fill.blue  { background: var(--blue); }
+.bar-pct {
+  font-size: 10px;
+  font-family: 'DM Mono', monospace;
+  color: var(--text2);
+  width: 34px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ── GO/NO-GO panel ──────────────────────────────────────── */
+.gono {
+  grid-row: 1 / 5;
+  grid-column: 4;
+  background: var(--bg0);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+.gono-head {
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.gono-head-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+
+.verdict-box {
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.verdict-label {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.verdict {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.verdict.go    { color: var(--green); }
+.verdict.nogo  { color: var(--red); animation: blink .9s infinite; }
+.verdict.hold  { color: var(--amber); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.go-list { flex: 1; overflow-y: auto; scrollbar-width: none; }
+.go-list::-webkit-scrollbar { display: none; }
+
+.go-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  gap: 8px;
+}
+.go-item:last-child { border-bottom: none; }
+.go-item-name {
+  font-size: 11px;
+  color: var(--text2);
+  font-weight: 400;
+}
+.go-chip {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 20px;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+.go-chip.go   { color: var(--green); border-color: rgba(74,222,128,.3); background: rgba(74,222,128,.08); }
+.go-chip.nogo { color: var(--red);   border-color: rgba(248,113,113,.3); background: rgba(248,113,113,.08); }
+.go-chip.hold { color: var(--amber); border-color: rgba(251,191,36,.3);  background: rgba(251,191,36,.08); }
+.go-chip.un   { color: var(--muted); border-color: rgba(75,98,117,.2); }
+
+/* ── Log bar ─────────────────────────────────────────────── */
+.log-bar {
+  grid-row: 4;
+  grid-column: 1 / 4;
+  background: var(--bg1);
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.log-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.log-head-title {
+  font-size: 10px;
+  letter-spacing: 1px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.log-fault-count { font-size: 10px; color: var(--red); font-family: 'DM Mono', monospace; }
+
+/* inline stats in log header */
+.log-stat { font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.log-stat b { font-family: 'DM Mono', monospace; font-weight: 600; }
+
+.log-rows {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  display: flex;
+  flex-direction: column-reverse;
+}
+.log-rows::-webkit-scrollbar { width: 3px; }
+.log-rows::-webkit-scrollbar-thumb { background: var(--bg2); }
+
+.log-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 3px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+}
+.log-time { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; flex-shrink: 0; }
+.log-cat  { font-size: 9px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; width: 44px; flex-shrink: 0; }
+.log-cat.ok    { color: var(--green); }
+.log-cat.warn  { color: var(--amber); }
+.log-cat.fault { color: var(--red); }
+.log-cat.info  { color: var(--blue); }
+.log-msg { color: var(--text2); font-size: 11px; }
+</style>
 </head>
-<body data-page="sensor-status">
+<body>
 
-  <div class="app-shell sensor-single-screen">
-    <header class="topbar">
-      <div class="topbar-main">
-        <div class="top-item status top-status-group">
-          <div class="logo-dropdown">
-            <button class="logo-dropdown-btn" type="button" aria-label="Open navigation menu">
-              <img src="logo.png" alt="Airsent logo" class="top-logo">
-            </button>
-            <div class="logo-dropdown-menu">
-              <a href="dashboard.html">MAIN DASHBOARD</a>
-              <a href="sensor-status.html">SENSOR STATUS</a>
-              <a href="telemetry.html">TELEMETRY</a>
-              <a href="gps.html">GPS PAGE</a>
-              <a href="actuators.html">ACTUATORS</a>
-            </div>
-          </div>
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <div class="logo-dropdown">
+      <button class="logo-dropdown-btn"><img src="logo.png" style="height:26px;" alt="Airsent"></button>
+      <div class="logo-dropdown-menu">
+      <a href="dashboard.html">Main Dashboard</a>
+      <a href="mission.html">Mission Planner</a>
+      <a href="preflight.html">Pre-Flight Checklist</a>
+      <a href="parameters.html">Parameters</a>
+      <a href="logs.html">Flight Logs</a>
+      <a href="launch.html">Launch Sequencer</a>
+      <a href="health.html">System Health</a>
+      <a href="sensor-status.html">Sensor Status</a>
+      <a href="actuators.html">Actuators</a>
+    </div>
+    </div>
+  </div>
+  <div class="topbar-divider"></div>
+  <span class="topbar-label">Sensor Status</span>
+  <div class="topbar-divider"></div>
+  <span class="topbar-label">Health</span>&nbsp;<span class="topbar-val green" id="hHealth">--</span>
+  <div class="topbar-divider"></div>
+  <span class="topbar-label">Alerts</span>&nbsp;<span class="topbar-val" id="hAlerts">0</span>
+  <div class="topbar-divider"></div>
+  <span class="topbar-label">EKF</span>&nbsp;<span class="topbar-val green" id="hEkf">--</span>
+  <div class="topbar-divider"></div>
+  <span class="topbar-label">Mode</span>&nbsp;<span class="topbar-val blue" id="hMode">--</span>
+  <div class="topbar-divider"></div>
+  <span class="topbar-label">Armed</span>&nbsp;<span class="topbar-val amber" id="hArmed">--</span>
+  <div class="topbar-right">
+    <span class="topbar-label">Updated</span>&nbsp;<span class="topbar-val blue" id="hUpd">--:--:--</span>
+    <div class="topbar-divider"></div>
+    <span class="topbar-val" id="hClock" style="color:var(--muted)">--:--:--</span>
+  </div>
+</div>
 
-          <span class="top-static-label">SYSTEM:</span>
-          <span class="sensor-page-title">VERSION 1 SENSOR STATUS</span>
-        </div>
+<!-- GRID -->
+<div class="body">
 
-        <div class="top-item">
-          HEALTH: <span id="sensorHealthSummary">9 / 9 OK</span>
-        </div>
-
-        <div class="top-item">
-          ALERTS: <span id="sensorAlertSummary">0 ACTIVE</span>
-        </div>
-
-        <div class="top-item">
-          LAST UPDATE: <span id="sensorLastUpdate">--:--:--</span>
-        </div>
+  <!-- GPS -->
+  <div class="card" id="c-gps">
+    <div class="card-head">
+      <div><div class="card-title">GPS Receiver</div><div class="card-sub">u-blox M9N · UART/CAN</div></div>
+      <span class="chip offline" id="chip-gps">Offline</span>
+    </div>
+    <div class="card-metrics">
+      <div class="row"><span class="row-label">Fix Type</span><span class="row-val blue" id="gps-fix">--</span></div>
+      <div class="row"><span class="row-label">Satellites</span><span class="row-val" id="gps-sats">--</span></div>
+      <div class="row"><span class="row-label">HDOP</span><span class="row-val" id="gps-hdop">--</span></div>
+      <div class="row"><span class="row-label">Latitude</span><span class="row-val" id="gps-lat">--</span></div>
+      <div class="row"><span class="row-label">Longitude</span><span class="row-val" id="gps-lon">--</span></div>
+      <div class="bar-row">
+        <span class="row-label">Signal</span>
+        <div class="bar-track"><div class="bar-fill blue" id="gps-bar" style="width:0%"></div></div>
+        <span class="bar-pct" id="gps-barpct">--</span>
       </div>
-    </header>
-
-    <section class="subbar sensor-subbar">
-      <div class="subbar-item"><span class="subbar-label">PAGE</span><span>SYSTEM ARCHITECTURE</span></div>
-      <div class="subbar-item"><span class="subbar-label">FLIGHT CONTROLLER</span><span>PX4 / PIXHAWK</span></div>
-      <div class="subbar-item"><span class="subbar-label">LAYOUT</span><span>LEFT SENSORS / RIGHT COMMS</span></div>
-      <div class="subbar-item"><span class="subbar-label">POWER STATE</span><span id="powerStateTop">NOMINAL</span></div>
-      <div class="subbar-item"><span class="subbar-label">FAULT</span><span id="faultStateTop">NONE</span></div>
-    </section>
-
-    <main class="sensor-fixed-layout sensor-fixed-layout-wide">
-      <section class="panel sensor-diagram-panel-fixed">
-        <div class="panel-title panel-title-with-actions">
-          <span>SENSOR STATUS PAGE</span>
-          <div class="panel-action-group">
-            <span class="status-chip ok" id="telemetryLinkChip">TELEMETRY LINKED</span>
-            <span class="status-chip info">VERSION 1</span>
-          </div>
-        </div>
-
-        <div class="sensor-diagram-fixed sensor-diagram-wide">
-          <div class="connection-grid" aria-hidden="true">
-            <span class="connector h gps-fc"></span>
-            <span class="connector h mag-fc"></span>
-            <span class="connector h baro-fc-left"></span>
-            <span class="connector h optical-fc"></span>
-            <span class="connector h lidar-fc"></span>
-            <span class="connector h power-fc-left"></span>
-
-            <span class="connector h rc-fc-right"></span>
-            <span class="connector h telem-fc-right"></span>
-
-            <span class="connector v left-stack"></span>
-            <span class="connector v right-stack"></span>
-            <span class="connector v center-down"></span>
-          </div>
-
-          <article class="sensor-module sensor-module-wide module-gps" data-sensor-key="gps">
-            <div class="module-name">GPS Receiver</div>
-            <div class="module-meta">UART / CAN</div>
-            <div class="module-status-row">
-              <span class="module-status-badge">OK</span>
-              <span class="module-detail" data-detail-for="gps">RTK FIX | 18 SATS</span>
-            </div>
-          </article>
-
-          <article class="sensor-module sensor-module-wide module-magnetometer" data-sensor-key="magnetometer">
-            <div class="module-name">Magnetometer</div>
-            <div class="module-meta">I2C / SPI</div>
-            <div class="module-status-row">
-              <span class="module-status-badge">OK</span>
-              <span class="module-detail" data-detail-for="magnetometer">CALIBRATED | LOW INTERFERENCE</span>
-            </div>
-          </article>
-
-          <article class="sensor-module sensor-module-wide module-barometer-left" data-sensor-key="barometer">
-            <div class="module-name">Barometer</div>
-            <div class="module-meta">I2C / SPI</div>
-            <div class="module-status-row">
-              <span class="module-status-badge">OK</span>
-              <span class="module-detail" data-detail-for="barometer">1003 MBAR</span>
-            </div>
-          </article>
-
-          <article class="sensor-module sensor-module-wide module-optical-flow-left" data-sensor-key="opticalFlow">
-            <div class="module-name">Optical Flow</div>
-            <div class="module-meta">I2C / SPI</div>
-            <div class="module-status-row">
-              <span class="module-status-badge">OK</span>
-              <span class="module-detail" data-detail-for="opticalFlow">SURFACE LOCK ACTIVE</span>
-            </div>
-          </article>
-
-          <article class="sensor-module sensor-module-wide module-lidar" data-sensor-key="lidar">
-            <div class="module-name">Lidar Rangefinder</div>
-            <div class="module-meta">UART / I2C</div>
-            <div class="module-status-row">
-              <span class="module-status-badge">OK</span>
-              <span class="module-detail" data-detail-for="lidar">RANGE DATA RESTORED</span>
-            </div>
-          </article>
-
-          <article class="sensor-module sensor-module-wide module-power-left" data-sensor-key="power">
-            <div class="module-name">Power Module</div>
-            <div class="module-meta">POWER / ADC</div>
-            <div class="module-status-row">
-              <span class="module-status-badge">OK</span>
-              <span class="module-detail" data-detail-for="power">15.5V | 11.2A | 73%</span>
-            </div>
-          </article>
-
-          <article class="sensor-module module-core module-core-wide" data-sensor-key="flightController">
-            <div class="module-name">Flight Controller</div>
-            <div class="module-subtitle">PX4 / Pixhawk</div>
-            <div class="module-meta">PRIMARY AVIONICS BUS</div>
-            <div class="fc-health-grid">
-              <div><span>IMU</span><strong id="fcImuState">OK</strong></div>
-              <div><span>EKF</span><strong id="fcEkfState">OK</strong></div>
-              <div><span>GPS</span><strong id="fcGpsState">OK</strong></div>
-              <div><span>I/O</span><strong id="fcIoState">OK</strong></div>
-            </div>
-          </article>
-
-          <article class="sensor-module sensor-module-wide module-rc-right" data-sensor-key="rc">
-            <div class="module-name">RC Receiver</div>
-            <div class="module-meta">SBUS / UART</div>
-            <div class="module-status-row">
-              <span class="module-status-badge">OK</span>
-              <span class="module-detail" data-detail-for="rc">LINK GOOD | RSSI 92%</span>
-            </div>
-          </article>
-
-          <article class="sensor-module sensor-module-wide module-telemetry-right" data-sensor-key="telemetry">
-            <div class="module-name">Telemetry Link</div>
-            <div class="module-meta">UART / MAVLINK</div>
-            <div class="module-status-row">
-              <span class="module-status-badge">OK</span>
-              <span class="module-detail" data-detail-for="telemetry">GROUND LINK | 97%</span>
-            </div>
-          </article>
-
-          <article class="sensor-module sensor-module-wide module-esc-bottom" data-sensor-key="escMotors">
-            <div class="module-name">ESC / Motors</div>
-            <div class="module-meta">PWM / DSHOT</div>
-            <div class="module-status-row">
-              <span class="module-status-badge">OK</span>
-              <span class="module-detail" data-detail-for="escMotors">OUTPUT NOMINAL</span>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="panel sensor-error-log-panel-fixed">
-        <div class="panel-title">ERROR LOG</div>
-        <div id="sensorErrorLog" class="sensor-error-log">
-          <div class="sensor-log-row ok">
-            <span class="log-time">18:25:26</span>
-            <div class="log-text-group">
-              <strong>LIDAR ONLINE</strong>
-              <span>Range data restored</span>
-            </div>
-          </div>
-          <div class="sensor-log-row failure">
-            <span class="log-time">12:45:08</span>
-            <div class="log-text-group">
-              <strong>LIDAR FAILURE: NO SIGNAL</strong>
-              <span>Error Code: Timeout</span>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
+    </div>
   </div>
 
-  <script src="telemetry.js"></script>
-  <script src="script.js"></script>
+  <!-- IMU -->
+  <div class="card" id="c-imu">
+    <div class="card-head">
+      <div><div class="card-title">IMU / Attitude</div><div class="card-sub">ICM-42688-P · SPI</div></div>
+      <span class="chip offline" id="chip-imu">Offline</span>
+    </div>
+    <div class="card-metrics">
+      <div class="row"><span class="row-label">Roll</span><span class="row-val" id="imu-roll">--</span></div>
+      <div class="row"><span class="row-label">Pitch</span><span class="row-val" id="imu-pitch">--</span></div>
+      <div class="row"><span class="row-label">Heading</span><span class="row-val blue" id="imu-yaw">--</span></div>
+      <div class="row"><span class="row-label">Roll Rate</span><span class="row-val" id="imu-rollr">--</span></div>
+      <div class="row"><span class="row-label">Pitch Rate</span><span class="row-val" id="imu-pitchr">--</span></div>
+      <div class="row"><span class="row-label">EKF</span><span class="row-val green" id="imu-ekf">--</span></div>
+    </div>
+  </div>
 
-  <script>
-    const airsentMode = localStorage.getItem("airsentMode") || "demo";
+  <!-- Barometer -->
+  <div class="card" id="c-baro">
+    <div class="card-head">
+      <div><div class="card-title">Barometer</div><div class="card-sub">MS5611 · I2C/SPI</div></div>
+      <span class="chip offline" id="chip-baro">Offline</span>
+    </div>
+    <div class="card-metrics">
+      <div class="row"><span class="row-label">Altitude AGL</span><span class="row-val" id="baro-alt">--</span></div>
+      <div class="row"><span class="row-label">Altitude MSL</span><span class="row-val" id="baro-msl">--</span></div>
+      <div class="row"><span class="row-label">Climb Rate</span><span class="row-val blue" id="baro-climb">--</span></div>
+      <div class="row"><span class="row-label">Ground Speed</span><span class="row-val" id="baro-spd">--</span></div>
+      <div class="row"><span class="row-label">CPU Load</span><span class="row-val" id="baro-cpu">--</span></div>
+      <div class="row"><span class="row-label">Throttle</span><span class="row-val" id="baro-thr">--</span></div>
+    </div>
+  </div>
 
-    const actualDisconnectedSensorState = {
-      gps: { status: "OFFLINE", detail: "NO GPS LOCK | 0 SATS" },
-      magnetometer: { status: "OFFLINE", detail: "NO DATA" },
-      barometer: { status: "OFFLINE", detail: "NO DATA" },
-      opticalFlow: { status: "OFFLINE", detail: "NO SURFACE LOCK" },
-      lidar: { status: "OFFLINE", detail: "NO RANGE DATA" },
-      power: { status: "OFFLINE", detail: "0.0V | 0.0A | 0%" },
-      rc: { status: "OFFLINE", detail: "NO SIGNAL | RSSI 0%" },
-      telemetry: { status: "OFFLINE", detail: "LINK DOWN | 0%" },
-      escMotors: { status: "OFFLINE", detail: "NO OUTPUT DATA" }
-    };
+  <!-- Magnetometer -->
+  <div class="card" id="c-mag">
+    <div class="card-head">
+      <div><div class="card-title">Magnetometer</div><div class="card-sub">IST8310 · I2C</div></div>
+      <span class="chip offline" id="chip-mag">Offline</span>
+    </div>
+    <div class="card-metrics">
+      <div class="row"><span class="row-label">Heading</span><span class="row-val" id="mag-hdg">--</span></div>
+      <div class="row"><span class="row-label">Calibration</span><span class="row-val green" id="mag-cal">--</span></div>
+      <div class="row"><span class="row-label">Compass Variance</span><span class="row-val" id="mag-var">--</span></div>
+      <div class="row"><span class="row-label">Interference</span><span class="row-val green" id="mag-int">--</span></div>
+      <div class="bar-row">
+        <span class="row-label">Field</span>
+        <div class="bar-track"><div class="bar-fill" id="mag-bar" style="width:50%"></div></div>
+        <span class="bar-pct">Norm</span>
+      </div>
+    </div>
+  </div>
 
-    function updateBadge(el, text, offline = false) {
-      if (!el) return;
-      el.textContent = text;
-      el.classList.remove("ok");
-      if (offline) {
-        el.style.color = "#ff6b6b";
-        el.style.borderColor = "rgba(255, 107, 107, 0.35)";
-        el.style.background = "rgba(255, 107, 107, 0.08)";
-      } else {
-        el.style.color = "";
-        el.style.borderColor = "";
-        el.style.background = "";
-      }
-    }
+  <!-- Power -->
+  <div class="card" id="c-pwr">
+    <div class="card-head">
+      <div><div class="card-title">Power System</div><div class="card-sub">4S LiPo · ADC/SMBUS</div></div>
+      <span class="chip offline" id="chip-pwr">Offline</span>
+    </div>
+    <div class="card-metrics">
+      <div class="row"><span class="row-label">Pack Voltage</span><span class="row-val" id="pwr-v">--</span></div>
+      <div class="row"><span class="row-label">Current Draw</span><span class="row-val amber" id="pwr-i">--</span></div>
+      <div class="row"><span class="row-label">Cell Voltage</span><span class="row-val" id="pwr-cell">--</span></div>
+      <div class="row"><span class="row-label">Battery</span><span class="row-val" id="pwr-pct">--</span></div>
+      <div class="bar-row">
+        <span class="row-label">Charge</span>
+        <div class="bar-track"><div class="bar-fill" id="pwr-bar" style="width:0%"></div></div>
+        <span class="bar-pct" id="pwr-barpct">--</span>
+      </div>
+    </div>
+  </div>
 
-    function setSensorModuleState(sensorKey, statusText, detailText) {
-      const module = document.querySelector(`[data-sensor-key="${sensorKey}"]`);
-      if (!module) return;
+  <!-- Lidar + Optical Flow -->
+  <div class="card" id="c-range">
+    <div class="card-head">
+      <div><div class="card-title">Lidar · Optical Flow</div><div class="card-sub">TF-Mini UART · PMW3901 SPI</div></div>
+      <span class="chip offline" id="chip-range">Offline</span>
+    </div>
+    <div class="card-metrics">
+      <div class="row"><span class="row-label">Lidar Range</span><span class="row-val" id="lidar-range">--</span></div>
+      <div class="row"><span class="row-label">Lidar Status</span><span class="row-val green" id="lidar-status">--</span></div>
+      <div class="row"><span class="row-label">Flow Quality</span><span class="row-val" id="flow-qual">--</span></div>
+      <div class="row"><span class="row-label">Surface Lock</span><span class="row-val green" id="flow-lock">--</span></div>
+      <div class="bar-row">
+        <span class="row-label">Flow</span>
+        <div class="bar-track"><div class="bar-fill blue" id="flow-bar" style="width:0%"></div></div>
+        <span class="bar-pct" id="flow-barpct">--</span>
+      </div>
+    </div>
+  </div>
 
-      const badge = module.querySelector(".module-status-badge");
-      const detail = module.querySelector(".module-detail");
+  <!-- RC + Vibration -->
+  <div class="card" id="c-rc">
+    <div class="card-head">
+      <div><div class="card-title">RC · Telemetry</div><div class="card-sub">SBUS · MAVLink v2</div></div>
+      <span class="chip offline" id="chip-rc">Offline</span>
+    </div>
+    <div class="card-metrics">
+      <div class="row"><span class="row-label">Link Status</span><span class="row-val green" id="rc-link">--</span></div>
+      <div class="row"><span class="row-label">RSSI</span><span class="row-val" id="rc-rssi">--</span></div>
+      <div class="row"><span class="row-label">Throttle</span><span class="row-val" id="rc-thr">--</span></div>
+      <div class="bar-row">
+        <span class="row-label">Signal</span>
+        <div class="bar-track"><div class="bar-fill blue" id="rc-bar" style="width:0%"></div></div>
+        <span class="bar-pct" id="rc-barpct">--</span>
+      </div>
+    </div>
+  </div>
 
-      updateBadge(badge, statusText, statusText !== "OK");
+  <!-- Vibration -->
+  <div class="card" id="c-vib">
+    <div class="card-head">
+      <div><div class="card-title">Vibration</div><div class="card-sub">IMU Derived · Accelerometer</div></div>
+      <span class="chip offline" id="chip-vib">Offline</span>
+    </div>
+    <div class="card-metrics">
+      <div class="row"><span class="row-label">Vib X</span><span class="row-val" id="vib-x">--</span></div>
+      <div class="row"><span class="row-label">Vib Y</span><span class="row-val" id="vib-y">--</span></div>
+      <div class="row"><span class="row-label">Vib Z</span><span class="row-val" id="vib-z">--</span></div>
+      <div class="row"><span class="row-label">Level</span><span class="row-val green" id="vib-level">--</span></div>
+    </div>
+  </div>
 
-      if (detail) {
-        detail.textContent = detailText;
-      }
-    }
+  <!-- Spare slot — ESC / Motors summary -->
+  <div class="card" id="c-esc">
+    <div class="card-head">
+      <div><div class="card-title">ESC · Motors</div><div class="card-sub">PWM · DSHOT · 4× outputs</div></div>
+      <span class="chip offline" id="chip-esc">Offline</span>
+    </div>
+    <div class="card-metrics">
+      <div class="row"><span class="row-label">M1 PWM</span><span class="row-val" id="esc-m1">--</span></div>
+      <div class="row"><span class="row-label">M2 PWM</span><span class="row-val" id="esc-m2">--</span></div>
+      <div class="row"><span class="row-label">M3 PWM</span><span class="row-val" id="esc-m3">--</span></div>
+      <div class="row"><span class="row-label">M4 PWM</span><span class="row-val" id="esc-m4">--</span></div>
+    </div>
+  </div>
 
-    function setActualDisconnectedView() {
-      document.getElementById("sensorHealthSummary").textContent = "0 / 9 OK";
-      document.getElementById("sensorAlertSummary").textContent = "9 ACTIVE";
-      document.getElementById("sensorLastUpdate").textContent = "--:--:--";
-      document.getElementById("powerStateTop").textContent = "OFFLINE";
-      document.getElementById("faultStateTop").textContent = "NO TELEMETRY";
+  <!-- GO/NO-GO panel -->
+  <div class="gono">
+    <div class="gono-head"><span class="gono-head-title">Launch Readiness</span></div>
+    <div class="verdict-box">
+      <span class="verdict-label">Overall Verdict</span>
+      <span class="verdict hold" id="verdict">HOLD</span>
+    </div>
+    <div class="go-list" id="goList"></div>
+    <!-- Live RC + Vib stats at bottom of gono -->
+    <div style="border-top:1px solid var(--line);flex-shrink:0;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 14px;border-bottom:1px solid var(--line);">
+        <span style="font-size:10px;color:var(--text2)">RC Link</span>
+        <span style="font-size:12px;font-family:'DM Mono',monospace;font-weight:700;" id="ls-rc">--</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 14px;border-bottom:1px solid var(--line);">
+        <span style="font-size:10px;color:var(--text2)">RSSI</span>
+        <span style="font-size:12px;font-family:'DM Mono',monospace;font-weight:700;" id="ls-rssi">--</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 14px;border-bottom:1px solid var(--line);">
+        <span style="font-size:10px;color:var(--text2)">Vib X/Y/Z</span>
+        <span style="font-size:11px;font-family:'DM Mono',monospace;font-weight:700;" id="ls-vib">--</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 14px;border-bottom:1px solid var(--line);">
+        <span style="font-size:10px;color:var(--text2)">Clips 0/1/2</span>
+        <span style="font-size:12px;font-family:'DM Mono',monospace;font-weight:700;" id="ls-clip">--</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 14px;">
+        <span style="font-size:10px;color:var(--text2)">Vib Level</span>
+        <span style="font-size:12px;font-family:'DM Mono',monospace;font-weight:700;" id="ls-vlevel">--</span>
+      </div>
+    </div>
+  </div>
 
-      const telemetryChip = document.getElementById("telemetryLinkChip");
-      if (telemetryChip) {
-        telemetryChip.textContent = "NO TELEMETRY";
-        telemetryChip.classList.remove("ok");
-        telemetryChip.style.color = "#ff6b6b";
-        telemetryChip.style.borderColor = "rgba(255, 107, 107, 0.35)";
-        telemetryChip.style.background = "rgba(255, 107, 107, 0.08)";
-      }
+  <!-- Log bar -->
+  <div class="log-bar">
+    <div class="log-head">
+      <span class="log-head-title">Event Log</span>
+      <span class="log-fault-count" id="logErrs">0 faults</span>
+    </div>
+    <div class="log-rows" id="logRows"></div>
+  </div>
 
-      Object.entries(actualDisconnectedSensorState).forEach(([key, value]) => {
-        setSensorModuleState(key, value.status, value.detail);
-      });
+</div>
 
-      document.getElementById("fcImuState").textContent = "OFFLINE";
-      document.getElementById("fcEkfState").textContent = "OFFLINE";
-      document.getElementById("fcGpsState").textContent = "OFFLINE";
-      document.getElementById("fcIoState").textContent = "OFFLINE";
+<script>
+const airsentMode = (localStorage.getItem("airsentMode") || "demo").toLowerCase();
+const isActual = airsentMode === "actual";
+let faultCount = 0;
 
-      const errorLog = document.getElementById("sensorErrorLog");
-      if (errorLog) {
-        errorLog.innerHTML = `
-          <div class="sensor-log-row failure">
-            <span class="log-time">--:--:--</span>
-            <div class="log-text-group">
-              <strong>NO TELEMETRY LINK</strong>
-              <span>Waiting for drone connection</span>
-            </div>
-          </div>
-          <div class="sensor-log-row failure">
-            <span class="log-time">--:--:--</span>
-            <div class="log-text-group">
-              <strong>SENSORS OFFLINE</strong>
-              <span>No live data available in actual mode</span>
-            </div>
-          </div>
-        `;
-      }
-    }
+function pad(n) { return String(n).padStart(2,"0"); }
+function now()  { const d=new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
+function el(id) { return document.getElementById(id); }
+function r2d(r) { return r * 180 / Math.PI; }
 
-    window.addEventListener("DOMContentLoaded", () => {
-      if (airsentMode === "actual") {
-        setActualDisconnectedView();
-      }
+function setVal(id, text, cls) {
+  const e = el(id); if (!e) return;
+  e.textContent = text;
+  if (cls !== undefined) {
+    e.className = "row-val" + (cls ? " "+cls : "");
+  }
+}
+
+function setBar(trackId, pct, fillCls, pctId) {
+  const fill = el(trackId); if (fill) { fill.style.width = Math.max(0,Math.min(100,pct||0))+"%"; if(fillCls) fill.className="bar-fill "+fillCls; }
+  if (pctId) { const pe=el(pctId); if(pe) pe.textContent = Math.round(pct||0)+"%"; }
+}
+
+function setCard(id, state) {
+  const card = el("c-"+id); const chip = el("chip-"+id);
+  if (card) { card.classList.remove("ok","warn","fault"); if(state!=="offline") card.classList.add(state); }
+  if (chip) {
+    chip.classList.remove("ok","warn","fault","offline");
+    chip.classList.add(state === "offline" ? "offline" : state === "ok" ? "ok" : state === "warn" ? "warn" : "fault");
+    chip.textContent = {ok:"OK",warn:"Warn",fault:"Fault",offline:"Offline"}[state]||"Offline";
+  }
+}
+
+// GO/NO-GO
+const GO_ITEMS = [
+  {id:"go-gps",    name:"GPS Fix"},
+  {id:"go-ekf",    name:"EKF Health"},
+  {id:"go-batt",   name:"Battery > 30%"},
+  {id:"go-volt",   name:"Voltage > 13V"},
+  {id:"go-imu",    name:"IMU Sensors"},
+  {id:"go-mag",    name:"Compass"},
+  {id:"go-rc",     name:"RC Link"},
+  {id:"go-vib",    name:"Vibration"},
+  {id:"go-lidar",  name:"Rangefinder"},
+  {id:"go-flow",   name:"Optical Flow"},
+  {id:"go-esc",    name:"ESC / Motors"},
+  {id:"go-prearm", name:"Pre-Arm Checks"},
+];
+
+(function() {
+  const list = el("goList");
+  GO_ITEMS.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "go-item";
+    div.innerHTML = `<span class="go-item-name">${item.name}</span><span class="go-chip un" id="${item.id}">--</span>`;
+    list.appendChild(div);
+  });
+})();
+
+function setGo(id, state) {
+  const e = el(id); if (!e) return;
+  e.classList.remove("go","nogo","hold","un");
+  e.classList.add({go:"go",nogo:"nogo",hold:"hold",unknown:"un"}[state]||"un");
+  e.textContent = {go:"GO",nogo:"NO-GO",hold:"HOLD",unknown:"--"}[state]||"--";
+}
+
+function updateVerdict() {
+  let nogos=0, holds=0;
+  document.querySelectorAll(".go-chip").forEach(c => {
+    if (c.classList.contains("nogo")) nogos++;
+    else if (c.classList.contains("hold")) holds++;
+  });
+  const v = el("verdict");
+  if (nogos>0)       { v.className="verdict nogo"; v.textContent="NO-GO"; }
+  else if (holds>0)  { v.className="verdict hold"; v.textContent="HOLD"; }
+  else               { v.className="verdict go";   v.textContent="GO"; }
+}
+
+function addLog(msg, cat) {
+  const rows = el("logRows"); if (!rows) return;
+  const row = document.createElement("div");
+  row.className = "log-row";
+  row.innerHTML = `<span class="log-time">${now()}</span><span class="log-cat ${cat}">${cat.toUpperCase()}</span><span class="log-msg">${msg}</span>`;
+  rows.prepend(row);
+  while (rows.children.length > 50) rows.removeChild(rows.lastChild);
+  if (cat === "fault") { faultCount++; el("logErrs").textContent = `${faultCount} fault${faultCount!==1?"s":""}`; }
+}
+
+function applyData(d) {
+  el("hUpd").textContent = now();
+
+  // GPS
+  const gpsOk = d.fix_type && d.fix_type !== "NO FIX";
+  setCard("gps", gpsOk ? "ok" : d.sats > 0 ? "warn" : "offline");
+  setVal("gps-fix",  d.fix_type||"--", gpsOk?"blue":"amber");
+  setVal("gps-sats", d.sats!=null?String(d.sats):"--", d.sats>=10?"green":"amber");
+  setVal("gps-hdop", d.hdop!=null?d.hdop.toFixed(2):"--", d.hdop<1.5?"green":"amber");
+  setVal("gps-lat",  d.lat!=null?d.lat.toFixed(5)+"°":"--");
+  setVal("gps-lon",  d.lon!=null?d.lon.toFixed(5)+"°":"--");
+  setBar("gps-bar", (d.sats||0)/25*100, "blue", "gps-barpct");
+  setGo("go-gps", gpsOk?"go":d.sats>0?"hold":"nogo");
+
+  // IMU
+  const imuOk = d.sensors_health ? !!(d.sensors_health & 0x3F) : d.roll!==undefined;
+  const ekfOk = d.ekf_healthy !== false;
+  setCard("imu", imuOk?"ok":"fault");
+  if (d.roll !== undefined) {
+    const rd = r2d(d.roll), pd = r2d(d.pitch||0), yd = ((r2d(d.yaw||0))+360)%360;
+    setVal("imu-roll",  `${rd>=0?"+":""}${rd.toFixed(1)}°`, Math.abs(rd)<20?"":"amber");
+    setVal("imu-pitch", `${pd>=0?"+":""}${pd.toFixed(1)}°`, Math.abs(pd)<20?"":"amber");
+    setVal("imu-yaw",   `${Math.round(yd)}°`, "blue");
+    setVal("imu-rollr",  d.rollspeed !=null?`${r2d(d.rollspeed).toFixed(1)}°/s`:"--");
+    setVal("imu-pitchr", d.pitchspeed!=null?`${r2d(d.pitchspeed).toFixed(1)}°/s`:"--");
+  }
+  setVal("imu-ekf", ekfOk?"Healthy":"Degraded", ekfOk?"green":"red");
+  setGo("go-imu", imuOk?"go":"nogo");
+  setGo("go-ekf", ekfOk?"go":"nogo");
+
+  // Baro
+  setCard("baro", d.alt!==undefined?"ok":"offline");
+  setVal("baro-alt",   d.alt!=null?`${d.alt.toFixed(1)} m`:"--");
+  setVal("baro-msl",   d.alt_msl!=null?`${d.alt_msl.toFixed(1)} m`:"--");
+  setVal("baro-climb", d.climb!=null?`${d.climb.toFixed(2)} m/s`:"--", Math.abs(d.climb||0)<0.5?"":"amber");
+  setVal("baro-spd",   d.groundspeed!=null?`${d.groundspeed.toFixed(1)} m/s`:"--");
+  setVal("baro-cpu",   d.cpu!=null?`${Math.round(d.cpu)}%`:"--", d.cpu<70?"":"amber");
+  setVal("baro-thr",   d.throttle!=null?`${Math.round(d.throttle)}%`:"--");
+
+  // Mag
+  const magOk = d.sensors_health ? !!(d.sensors_health & 0x100) : true;
+  setCard("mag", magOk?"ok":"fault");
+  setVal("mag-hdg", d.heading!=null?`${d.heading}°`:"--");
+  setVal("mag-cal", magOk?"Calibrated":"Uncalibrated", magOk?"green":"red");
+  const cv = d.ekf_compass_variance;
+  setVal("mag-var", cv!=null?cv.toFixed(4):"--", cv<0.1?"green":cv<0.3?"amber":"red");
+  setVal("mag-int", cv!=null?(cv<0.1?"Low":cv<0.3?"Medium":"High"):"--", cv<0.1?"green":cv<0.3?"amber":"red");
+  setGo("go-mag", magOk?"go":"nogo");
+
+  // Power
+  const volt=d.voltage||0, batt=d.battery!=null?Math.round(d.battery):null;
+  setCard("pwr", volt>13?"ok":volt>10?"warn":volt>0?"fault":"offline");
+  setVal("pwr-v",    volt?`${volt.toFixed(1)} V`:"--", volt>14?"green":volt>12?"amber":"red");
+  setVal("pwr-i",    d.current!=null?`${d.current.toFixed(1)} A`:"--", "amber");
+  setVal("pwr-cell", d.cell_voltage?`${d.cell_voltage.toFixed(3)} V`:"--");
+  setVal("pwr-pct",  batt!=null?`${batt}%`:"--", batt>50?"green":batt>25?"amber":"red");
+  setBar("pwr-bar", batt||0, batt>50?"":"batt>25?'amber':'red'", "pwr-barpct");
+  const pwrFill = el("pwr-bar"); if(pwrFill) pwrFill.className="bar-fill "+(batt>50?"":"batt>25?'amber':'red'");
+  // fix color properly
+  if(pwrFill) pwrFill.className = "bar-fill " + (batt > 50 ? "" : batt > 25 ? "amber" : "red");
+  if(el("pwr-barpct")) el("pwr-barpct").textContent = batt!=null?batt+"%":"--";
+  setGo("go-batt", batt>30?"go":batt>15?"hold":"nogo");
+  setGo("go-volt", volt>13?"go":volt>11?"hold":"nogo");
+  el("hUpd").textContent = now();
+
+  // Lidar + Flow
+  const rng=d.rangefinder, rngOk=rng!=null&&rng>0.05&&rng<12;
+  const fq=d.of_quality, flowOk=fq!=null&&fq>50;
+  setCard("range", rngOk?"ok":rng!=null||fq!=null?"warn":"offline");
+  setVal("lidar-range",  rng!=null?`${rng.toFixed(2)} m`:"--");
+  setVal("lidar-status", rngOk?"Nominal":rng!=null?"Out of range":"No signal", rngOk?"green":"red");
+  setVal("flow-qual",    fq!=null?`${Math.round(fq)}%`:"--", flowOk?"green":"amber");
+  setVal("flow-lock",    flowOk?"Surface lock":"No lock", flowOk?"green":"amber");
+  setBar("flow-bar", fq||0, "blue", "flow-barpct");
+  setGo("go-lidar", rngOk?"go":"hold");
+  setGo("go-flow",  flowOk?"go":"hold");
+
+  // RC
+  const rssi=d.rssi, rcOk=rssi!=null&&rssi>20;
+  setCard("rc", rcOk?"ok":rssi!=null?"warn":"offline");
+  setVal("rc-link", rcOk?"Link Good":"No Signal", rcOk?"green":"red");
+  setVal("rc-rssi", rssi!=null?`${rssi.toFixed(0)}%`:"--", rssi>60?"green":rssi>30?"amber":"red");
+  setVal("rc-thr",  d.rc_throttle!=null?`${d.rc_throttle} μs`:"--");
+  setBar("rc-bar", rssi||0, rssi>60?"blue":"amber", "rc-barpct");
+  setGo("go-rc", rcOk?"go":"nogo");
+  const rcls = el("ls-rc"); if(rcls){rcls.textContent=rcOk?"GOOD":"NO SIG";rcls.style.color=rcOk?"var(--green)":"var(--red)";}
+  const rslEl = el("ls-rssi"); if(rslEl){rslEl.textContent=rssi!=null?rssi.toFixed(0)+"%":"--";rslEl.style.color=rcOk?"var(--blue)":"var(--amber)";}
+
+  // Vibration
+  const vx=d.vib_x, vy=d.vib_y, vz=d.vib_z;
+  const vm=vx!=null?Math.sqrt(vx*vx+vy*vy+vz*vz):null;
+  const vibOk=vm!=null&&vm<30;
+  setCard("vib", vx!=null?(vibOk?"ok":"warn"):"offline");
+  setVal("vib-x", vx!=null?vx.toFixed(3):"--", vx<15?"":"amber");
+  setVal("vib-y", vy!=null?vy.toFixed(3):"--", vy<15?"":"amber");
+  setVal("vib-z", vz!=null?vz.toFixed(3):"--", vz<15?"":"amber");
+  setVal("vib-level", vm!=null?(vibOk?"Low":vm<60?"Medium":"High"):"--", vibOk?"green":vm<60?"amber":"red");
+  setGo("go-vib", vibOk?"go":vm<60?"hold":"nogo");
+  const vbEl=el("ls-vib"); if(vbEl){vbEl.textContent=vx!=null?`${vx.toFixed(2)}/${vy.toFixed(2)}/${vz.toFixed(2)}`:"--";vbEl.style.color="var(--blue)";}
+  const clEl=el("ls-clip"); if(clEl){clEl.textContent=vx!=null?`${d.clip_0||0}/${d.clip_1||0}/${d.clip_2||0}`:"--";}
+  const vlEl=el("ls-vlevel"); if(vlEl){vlEl.textContent=vm!=null?(vibOk?"Low":vm<60?"Medium":"High"):"--";vlEl.style.color=vibOk?"var(--green)":vm<60?"var(--amber)":"var(--red)";}
+
+  // ESC
+  setCard("esc", d.m1!=null?"ok":"offline");
+  setVal("esc-m1", d.m1!=null?`${Math.floor(d.m1)} μs`:"--");
+  setVal("esc-m2", d.m2!=null?`${Math.floor(d.m2)} μs`:"--");
+  setVal("esc-m3", d.m3!=null?`${Math.floor(d.m3)} μs`:"--");
+  setVal("esc-m4", d.m4!=null?`${Math.floor(d.m4)} μs`:"--");
+  setGo("go-esc", d.m1!=null?"go":"hold");
+
+  // Pre-arm
+  setGo("go-prearm", gpsOk&&ekfOk&&imuOk&&magOk&&volt>10?"go":"nogo");
+
+  // Header stats
+  const cardIds=["gps","imu","baro","mag","pwr","range","rc","vib","esc"];
+  const okC = cardIds.filter(id=>el("c-"+id)?.classList.contains("ok")).length;
+  const alerts = cardIds.length - okC;
+  el("hHealth").textContent=`${okC}/${cardIds.length}`;
+  el("hHealth").className="topbar-val "+(okC>=7?"green":okC>=5?"amber":"red");
+  el("hAlerts").textContent=alerts;
+  el("hAlerts").className="topbar-val "+(alerts===0?"green":alerts<=2?"amber":"red");
+  el("hEkf").textContent=ekfOk?"Healthy":"Degraded";
+  el("hEkf").className="topbar-val "+(ekfOk?"green":"red");
+  if(d.flight_mode) el("hMode").textContent=d.flight_mode;
+  if(d.armed!==undefined){el("hArmed").textContent=d.armed?"ARMED":"Disarmed";el("hArmed").className="topbar-val "+(d.armed?"red":"amber");}
+
+  updateVerdict();
+}
+
+function setDisconnected() {
+  ["gps","imu","baro","mag","pwr","range","rc","vib","esc"].forEach(id=>setCard(id,"offline"));
+  GO_ITEMS.forEach(i=>setGo(i.id,"unknown"));
+  el("verdict").className="verdict hold"; el("verdict").textContent="HOLD";
+}
+
+function runDemo() {
+  function rnd(a,b){return Math.random()*(b-a)+a;}
+  addLog("Demo mode active — simulated sensor data","info");
+  setInterval(()=>{
+    applyData({
+      fix_type:"RTK FIX", sats:Math.floor(rnd(16,22)), hdop:rnd(0.5,1.2), vdop:rnd(0.6,1.4),
+      lat:33.4136+rnd(-0.001,0.001), lon:-111.9196+rnd(-0.001,0.001),
+      roll:rnd(-0.06,0.06), pitch:rnd(-0.05,0.05), yaw:rnd(0,6.28),
+      rollspeed:rnd(-0.04,0.04), pitchspeed:rnd(-0.04,0.04),
+      sensors_health:0x201FF, ekf_healthy:true,
+      ekf_vel_variance:rnd(0.01,0.04), ekf_pos_horiz:rnd(0.01,0.06), ekf_compass_variance:rnd(0.01,0.05),
+      alt:rnd(0,1), alt_msl:rnd(300,301), climb:rnd(-0.1,0.1),
+      groundspeed:rnd(0,0.2), throttle:rnd(0,3), cpu:rnd(25,42), airspeed:0,
+      heading:Math.floor(rnd(100,200)),
+      voltage:rnd(15.5,16.0), current:rnd(4,6), battery:rnd(60,75), cell_voltage:rnd(3.9,4.1),
+      rangefinder:rnd(0.3,1.0), of_quality:rnd(70,100), of_flow_x:rnd(-0.3,0.3), of_flow_y:rnd(-0.3,0.3),
+      rssi:rnd(75,92), rc_throttle:1000,
+      vib_x:rnd(0.5,3), vib_y:rnd(0.5,3), vib_z:rnd(1,6), clip_0:0, clip_1:0, clip_2:0,
+      m1:rnd(1000,1050), m2:rnd(1000,1050), m3:rnd(1000,1050), m4:rnd(1000,1050),
+      flight_mode:"STABILIZE", armed:false,
     });
-  </script>
+  }, 1000);
+}
+
+let ws = null;
+function connectWs() {
+  ws = new WebSocket("ws://localhost:8765");
+  ws.onopen = () => addLog("Telemetry link established","ok");
+  ws.onmessage = e => { try{applyData(JSON.parse(e.data));}catch(err){} };
+  ws.onclose = () => { setDisconnected(); addLog("Link lost — retrying","fault"); setTimeout(connectWs,3000); };
+  ws.onerror = () => { ws=null; };
+}
+
+setInterval(() => el("hClock").textContent = now(), 1000);
+
+window.addEventListener("DOMContentLoaded", () => {
+  if (isActual) { setDisconnected(); connectWs(); }
+  else runDemo();
+});
+</script>
 </body>
 </html>

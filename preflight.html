@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Airsent — Pre-Flight Checklist</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg0:#060c12; --bg1:#0a131c; --bg2:#0e1a26;
+  --line:rgba(255,255,255,.06);
+  --green:#4ade80; --amber:#fbbf24; --red:#f87171; --blue:#60a5fa;
+  --muted:#4b6275; --text:#e2eaf0; --text2:#7a95a8;
+}
+body { height:100vh; overflow:hidden; background:var(--bg0); color:var(--text); font-family:'DM Sans',Arial,sans-serif; display:flex; flex-direction:column; }
+
+/* Nav */
+.logo-dropdown { position:relative; display:inline-block; }
+.logo-dropdown-btn { background:transparent; border:none; padding:0; display:flex; align-items:center; cursor:pointer; }
+.logo-dropdown-menu { display:none; position:absolute; top:calc(100% + 6px); left:0; min-width:210px; background:#0a131c; border:1px solid rgba(255,255,255,.08); border-radius:8px; overflow:hidden; z-index:9999; box-shadow:0 16px 48px rgba(0,0,0,.6); }
+.logo-dropdown-menu a { display:block; padding:10px 14px; color:#c8dce8; text-decoration:none; font-size:12px; }
+.logo-dropdown-menu a:hover { background:rgba(255,255,255,.05); color:#fff; }
+.logo-dropdown:hover .logo-dropdown-menu, .logo-dropdown:focus-within .logo-dropdown-menu { display:block; }
+
+/* Top bar */
+.topbar { flex-shrink:0; height:44px; background:var(--bg1); border-bottom:1px solid var(--line); display:flex; align-items:center; padding:0 14px; gap:6px; }
+.t-div { width:1px; height:18px; background:var(--line); margin:0 4px; }
+.t-lbl { font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); }
+.t-val { font-size:11px; font-weight:700; font-family:'DM Mono',monospace; }
+.t-val.g{color:var(--green);} .t-val.a{color:var(--amber);} .t-val.r{color:var(--red);} .t-val.b{color:var(--blue);}
+.t-right { margin-left:auto; display:flex; align-items:center; gap:6px; }
+
+/* Body */
+.body { flex:1; min-height:0; display:grid; grid-template-columns:1fr 1fr 1fr 260px; grid-template-rows:1fr 56px; gap:1px; background:var(--line); overflow:hidden; }
+
+/* Column */
+.col { background:var(--bg0); display:flex; flex-direction:column; overflow:hidden; }
+.col-head { padding:10px 14px 8px; border-bottom:1px solid var(--line); flex-shrink:0; display:flex; align-items:center; justify-content:space-between; }
+.col-title { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; }
+.col-count { font-size:10px; font-family:'DM Mono',monospace; color:var(--muted); }
+.col-items { flex:1; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--line) transparent; }
+.col-items::-webkit-scrollbar { width:3px; }
+.col-items::-webkit-scrollbar-thumb { background:var(--bg2); }
+
+/* Check item */
+.check-item {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:10px 14px; border-bottom:1px solid var(--line);
+  cursor:pointer; transition:background .1s; position:relative;
+}
+.check-item:hover { background:rgba(255,255,255,.02); }
+.check-item.auto { cursor:default; }
+
+/* Checkbox */
+.cb {
+  width:18px; height:18px; border-radius:4px;
+  border:1px solid var(--muted); background:transparent;
+  flex-shrink:0; margin-top:1px;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .2s; position:relative; overflow:hidden;
+}
+.cb.pass  { border-color:var(--green); background:rgba(74,222,128,.12); }
+.cb.fail  { border-color:var(--red);   background:rgba(248,113,113,.12); }
+.cb.warn  { border-color:var(--amber); background:rgba(251,191,36,.12);  }
+.cb.skip  { border-color:var(--muted); background:rgba(75,98,117,.1);    }
+.cb.auto-pass { border-color:var(--green); background:rgba(74,222,128,.08); border-style:dashed; }
+.cb.auto-fail { border-color:var(--red);   background:rgba(248,113,113,.08); border-style:dashed; }
+.cb.auto-warn { border-color:var(--amber); background:rgba(251,191,36,.08);  border-style:dashed; }
+.cb-icon { font-size:11px; line-height:1; }
+
+/* Item content */
+.check-content { flex:1; min-width:0; }
+.check-label { font-size:12px; font-weight:500; color:var(--text); line-height:1.3; }
+.check-desc  { font-size:10px; color:var(--text2); margin-top:2px; line-height:1.4; }
+.check-live  { font-size:10px; font-family:'DM Mono',monospace; color:var(--blue); margin-top:3px; }
+.check-tag {
+  font-size:8px; letter-spacing:.8px; text-transform:uppercase;
+  padding:1px 5px; border-radius:10px; border:1px solid;
+  margin-left:6px; vertical-align:middle;
+}
+.tag-auto { color:var(--blue); border-color:rgba(96,165,250,.3); background:rgba(96,165,250,.06); }
+.tag-manual { color:var(--muted); border-color:rgba(75,98,117,.25); }
+
+/* Right summary panel */
+.summary { grid-row:1; grid-column:4; background:var(--bg0); display:flex; flex-direction:column; overflow:hidden; }
+.summary-head { padding:10px 14px 8px; border-bottom:1px solid var(--line); flex-shrink:0; }
+.summary-title { font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; }
+
+.verdict-box { padding:16px 14px; border-bottom:1px solid var(--line); text-align:center; flex-shrink:0; }
+.verdict-label { font-size:8px; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; margin-bottom:6px; }
+.verdict { font-size:28px; font-weight:700; letter-spacing:5px; text-transform:uppercase; line-height:1; }
+.verdict.go    { color:var(--green); }
+.verdict.nogo  { color:var(--red); animation:blink .9s infinite; }
+.verdict.hold  { color:var(--amber); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.summary-stats { padding:0; flex-shrink:0; }
+.stat-row { display:flex; align-items:center; justify-content:space-between; padding:7px 14px; border-bottom:1px solid var(--line); }
+.stat-label { font-size:11px; color:var(--text2); }
+.stat-val { font-size:12px; font-family:'DM Mono',monospace; font-weight:700; }
+.stat-val.g{color:var(--green);} .stat-val.a{color:var(--amber);} .stat-val.r{color:var(--red);}
+
+.summary-actions { padding:12px 14px; display:flex; flex-direction:column; gap:8px; margin-top:auto; flex-shrink:0; }
+.action-btn {
+  height:36px; border-radius:6px; border:1px solid;
+  font-size:11px; font-weight:700; letter-spacing:.8px;
+  text-transform:uppercase; cursor:pointer; transition:all .15s;
+  font-family:'DM Sans',Arial,sans-serif;
+}
+.btn-primary { background:rgba(74,222,128,.1); border-color:rgba(74,222,128,.4); color:var(--green); }
+.btn-primary:hover { background:rgba(74,222,128,.2); border-color:var(--green); }
+.btn-secondary { background:transparent; border-color:var(--line); color:var(--text2); }
+.btn-secondary:hover { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.15); color:var(--text); }
+.btn-danger { background:rgba(248,113,113,.08); border-color:rgba(248,113,113,.3); color:var(--red); }
+.btn-danger:hover { background:rgba(248,113,113,.15); }
+
+/* Bottom status bar */
+.status-bar { grid-row:2; grid-column:1 / 5; background:var(--bg1); border-top:1px solid var(--line); display:flex; align-items:center; padding:0 14px; gap:16px; }
+.sb-item { font-size:10px; color:var(--text2); display:flex; align-items:center; gap:5px; }
+.sb-item b { font-family:'DM Mono',monospace; font-weight:700; }
+.sb-sep { width:1px; height:16px; background:var(--line); }
+.sb-right { margin-left:auto; font-size:10px; color:var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo-dropdown">
+    <button class="logo-dropdown-btn"><img src="logo.png" style="height:24px;" alt="Airsent"></button>
+    <div class="logo-dropdown-menu">
+      <a href="dashboard.html">Main Dashboard</a>
+      <a href="mission.html">Mission Planner</a>
+      <a href="preflight.html">Pre-Flight Checklist</a>
+      <a href="parameters.html">Parameters</a>
+      <a href="logs.html">Flight Logs</a>
+      <a href="launch.html">Launch Sequencer</a>
+      <a href="health.html">System Health</a>
+      <a href="sensor-status.html">Sensor Status</a>
+      <a href="actuators.html">Actuators</a>
+    </div>
+  </div>
+  <div class="t-div"></div>
+  <span style="font-size:9px;letter-spacing:3px;font-weight:700;color:var(--amber);text-transform:uppercase;">Pre-Flight Checklist</span>
+  <div class="t-div"></div>
+  <span class="t-lbl">Pass</span>&nbsp;<span class="t-val g" id="hPass">0</span>
+  <div class="t-div"></div>
+  <span class="t-lbl">Fail</span>&nbsp;<span class="t-val r" id="hFail">0</span>
+  <div class="t-div"></div>
+  <span class="t-lbl">Remaining</span>&nbsp;<span class="t-val a" id="hRemain">--</span>
+  <div class="t-div"></div>
+  <span class="t-lbl">Telemetry</span>&nbsp;<span class="t-val r" id="hTelem">OFFLINE</span>
+  <div class="t-right">
+    <span class="t-val" style="color:var(--muted)" id="hClock">--:--:--</span>
+  </div>
+</div>
+
+<div class="body">
+
+  <!-- COL 1: Vehicle -->
+  <div class="col">
+    <div class="col-head">
+      <span class="col-title" style="color:var(--blue)">Vehicle</span>
+      <span class="col-count" id="cnt-vehicle">0/0</span>
+    </div>
+    <div class="col-items" id="col-vehicle"></div>
+  </div>
+
+  <!-- COL 2: Navigation -->
+  <div class="col">
+    <div class="col-head">
+      <span class="col-title" style="color:var(--green)">Navigation & Sensors</span>
+      <span class="col-count" id="cnt-nav">0/0</span>
+    </div>
+    <div class="col-items" id="col-nav"></div>
+  </div>
+
+  <!-- COL 3: Communication -->
+  <div class="col">
+    <div class="col-head">
+      <span class="col-title" style="color:var(--amber)">Comms & Safety</span>
+      <span class="col-count" id="cnt-comms">0/0</span>
+    </div>
+    <div class="col-items" id="col-comms"></div>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary">
+    <div class="summary-head"><div class="summary-title">Flight Readiness</div></div>
+    <div class="verdict-box">
+      <div class="verdict-label">Verdict</div>
+      <div class="verdict hold" id="verdict">HOLD</div>
+    </div>
+    <div class="summary-stats">
+      <div class="stat-row"><span class="stat-label">Passed</span><span class="stat-val g" id="s-pass">0</span></div>
+      <div class="stat-row"><span class="stat-label">Failed</span><span class="stat-val r" id="s-fail">0</span></div>
+      <div class="stat-row"><span class="stat-label">Warnings</span><span class="stat-val a" id="s-warn">0</span></div>
+      <div class="stat-row"><span class="stat-label">Skipped</span><span class="stat-val" style="color:var(--muted)" id="s-skip">0</span></div>
+      <div class="stat-row"><span class="stat-label">Remaining</span><span class="stat-val a" id="s-remain">--</span></div>
+      <div class="stat-row"><span class="stat-label">Auto-Checked</span><span class="stat-val b" id="s-auto">0</span></div>
+    </div>
+    <div class="summary-actions">
+      <button class="action-btn btn-primary" id="btnClearFail">Clear Failed Items</button>
+      <button class="action-btn btn-secondary" id="btnReset">Reset All</button>
+      <button class="action-btn btn-danger" id="btnResetHard">Full Reset + Reconnect</button>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="status-bar">
+    <div class="sb-item">Battery <b id="sb-batt" style="color:var(--muted)">--</b></div>
+    <div class="sb-sep"></div>
+    <div class="sb-item">GPS <b id="sb-gps" style="color:var(--muted)">--</b></div>
+    <div class="sb-sep"></div>
+    <div class="sb-item">EKF <b id="sb-ekf" style="color:var(--muted)">--</b></div>
+    <div class="sb-sep"></div>
+    <div class="sb-item">RSSI <b id="sb-rssi" style="color:var(--muted)">--</b></div>
+    <div class="sb-sep"></div>
+    <div class="sb-item">Alt AGL <b id="sb-alt" style="color:var(--muted)">--</b></div>
+    <div class="sb-sep"></div>
+    <div class="sb-item">Vib Level <b id="sb-vib" style="color:var(--muted)">--</b></div>
+    <div class="sb-right" id="sb-note">Click any manual item to mark it complete</div>
+  </div>
+
+</div>
+
+<script>
+const airsentMode = (localStorage.getItem("airsentMode") || "demo").toLowerCase();
+const isActual = airsentMode === "actual";
+
+function pad(n) { return String(n).padStart(2,"0"); }
+function now()  { const d=new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
+function el(id) { return document.getElementById(id); }
+function r2d(r) { return r * 180 / Math.PI; }
+
+// ── Checklist definition ─────────────────────────────────
+// type: auto = driven by telemetry, manual = operator taps
+// state: pending | pass | fail | warn | skip
+const CHECKS = {
+  vehicle: [
+    { id:'v-frame',    label:'Frame & Props Inspection',   desc:'Check all arms, motor mounts, props for cracks or loose fasteners', type:'manual' },
+    { id:'v-props',    label:'Props Tight & Correct Direction', desc:'All 4 propellers firmly seated, CW/CCW correct per motor position', type:'manual' },
+    { id:'v-battery',  label:'Battery Secured',            desc:'Battery strap tight, connector fully seated, no puffing', type:'manual' },
+    { id:'v-batt-pct', label:'Battery Charge ≥ 50%',      desc:'Minimum 50% charge recommended for full mission', type:'auto',
+      check: d => d.battery != null ? (d.battery >= 50 ? 'pass' : d.battery >= 25 ? 'warn' : 'fail') : 'pending',
+      live: d => d.battery != null ? `${Math.round(d.battery)}% · ${d.voltage?.toFixed(1)||'--'}V` : '--' },
+    { id:'v-voltage',  label:'Cell Voltage ≥ 3.8V',       desc:'Each cell should read at least 3.8V at rest', type:'auto',
+      check: d => d.cell_voltage != null ? (d.cell_voltage >= 3.8 ? 'pass' : d.cell_voltage >= 3.6 ? 'warn' : 'fail') : 'pending',
+      live: d => d.cell_voltage ? `${d.cell_voltage.toFixed(3)} V/cell` : '--' },
+    { id:'v-motors',   label:'Motors Free & Undamaged',    desc:'Spin each motor by hand — smooth, no grinding or wobble', type:'manual' },
+    { id:'v-esc',      label:'ESC Outputs Nominal',        desc:'M1–M4 all responding at idle (1000 μs)', type:'auto',
+      check: d => d.m1 != null ? (d.m1 >= 990 && d.m1 <= 1100 ? 'pass' : 'warn') : 'pending',
+      live: d => d.m1 ? `M1:${Math.floor(d.m1)} M2:${Math.floor(d.m2||0)} M3:${Math.floor(d.m3||0)} M4:${Math.floor(d.m4||0)} μs` : '--' },
+    { id:'v-vibration',label:'Vibration Within Limits',    desc:'Vibration magnitude < 30 m/s² recommended', type:'auto',
+      check: d => {
+        if (d.vib_x == null) return 'pending';
+        const vm = Math.sqrt(d.vib_x**2 + d.vib_y**2 + d.vib_z**2);
+        return vm < 15 ? 'pass' : vm < 30 ? 'warn' : 'fail';
+      },
+      live: d => d.vib_x != null ? `X:${d.vib_x.toFixed(2)} Y:${d.vib_y.toFixed(2)} Z:${d.vib_z.toFixed(2)}` : '--' },
+    { id:'v-payload',  label:'Payload Secured',            desc:'Camera, antennas, payload bay all secure and within CG limits', type:'manual' },
+  ],
+  nav: [
+    { id:'n-gps',      label:'GPS Fix Acquired',           desc:'Minimum 3D Fix required, RTK FIX preferred', type:'auto',
+      check: d => d.fix_type ? (d.fix_type.includes('RTK') ? 'pass' : d.fix_type === '3D FIX' ? 'warn' : 'fail') : 'pending',
+      live: d => d.fix_type ? `${d.fix_type} · ${d.sats||0} sats` : '--' },
+    { id:'n-sats',     label:'Satellite Count ≥ 10',       desc:'10+ satellites recommended for stable positioning', type:'auto',
+      check: d => d.sats != null ? (d.sats >= 12 ? 'pass' : d.sats >= 8 ? 'warn' : 'fail') : 'pending',
+      live: d => d.sats != null ? `${d.sats} satellites · HDOP ${d.hdop?.toFixed(2)||'--'}` : '--' },
+    { id:'n-hdop',     label:'HDOP ≤ 2.0',                desc:'Horizontal dilution of precision below 2.0', type:'auto',
+      check: d => d.hdop != null ? (d.hdop < 1.5 ? 'pass' : d.hdop < 2.5 ? 'warn' : 'fail') : 'pending',
+      live: d => d.hdop != null ? `HDOP ${d.hdop.toFixed(2)}` : '--' },
+    { id:'n-ekf',      label:'EKF Status Healthy',         desc:'Extended Kalman Filter must be healthy before arming', type:'auto',
+      check: d => d.ekf_healthy === undefined ? 'pending' : d.ekf_healthy ? 'pass' : 'fail',
+      live: d => d.ekf_healthy === undefined ? '--' : d.ekf_healthy ? 'HEALTHY' : 'DEGRADED' },
+    { id:'n-compass',  label:'Compass Calibrated',         desc:'Magnetometer calibrated, low interference', type:'auto',
+      check: d => d.sensors_health != null ? (!!(d.sensors_health & 0x100) ? 'pass' : 'fail') : 'pending',
+      live: d => d.ekf_compass_variance != null ? `Variance ${d.ekf_compass_variance.toFixed(4)}` : '--' },
+    { id:'n-imu',      label:'IMU Sensors Healthy',        desc:'All inertial measurement sensors reporting normally', type:'auto',
+      check: d => d.sensors_health != null ? (!!(d.sensors_health & 0x3F) ? 'pass' : 'fail') : 'pending',
+      live: d => d.roll != null ? `Roll ${(r2d(d.roll)).toFixed(1)}° Pitch ${(r2d(d.pitch||0)).toFixed(1)}°` : '--' },
+    { id:'n-baro',     label:'Barometer Nominal',          desc:'Altitude reading stable and plausible', type:'auto',
+      check: d => d.alt != null ? 'pass' : 'pending',
+      live: d => d.alt != null ? `${d.alt.toFixed(1)} m AGL · ${d.alt_msl?.toFixed(0)||'--'} m MSL` : '--' },
+    { id:'n-lidar',    label:'Lidar Rangefinder Active',   desc:'Range data available and within sensor limits', type:'auto',
+      check: d => d.rangefinder != null ? (d.rangefinder > 0.05 && d.rangefinder < 12 ? 'pass' : 'warn') : 'pending',
+      live: d => d.rangefinder != null ? `${d.rangefinder.toFixed(2)} m` : 'No signal' },
+    { id:'n-flow',     label:'Optical Flow Active',        desc:'Surface lock established, quality > 50%', type:'auto',
+      check: d => d.of_quality != null ? (d.of_quality > 70 ? 'pass' : d.of_quality > 50 ? 'warn' : 'fail') : 'pending',
+      live: d => d.of_quality != null ? `Quality ${Math.round(d.of_quality)}%` : 'No signal' },
+    { id:'n-home',     label:'Home Position Set',          desc:'Home location locked before takeoff', type:'auto',
+      check: d => d.lat != null && d.lat !== 0 ? 'pass' : 'pending',
+      live: d => d.lat ? `${d.lat.toFixed(5)}° ${d.lon?.toFixed(5)||''}°` : '--' },
+  ],
+  comms: [
+    { id:'c-rc',       label:'RC Link Active',             desc:'Radio controller connected with good RSSI', type:'auto',
+      check: d => d.rssi != null ? (d.rssi > 60 ? 'pass' : d.rssi > 30 ? 'warn' : 'fail') : 'pending',
+      live: d => d.rssi != null ? `RSSI ${d.rssi.toFixed(0)}%` : 'No signal' },
+    { id:'c-modes',    label:'Flight Modes Configured',    desc:'Verify mode switches on RC are set correctly', type:'manual' },
+    { id:'c-failsafe', label:'Failsafe Verified',          desc:'RC loss and battery failsafe tested and configured', type:'manual' },
+    { id:'c-telem',    label:'Telemetry Link Active',      desc:'GCS connected and receiving live data', type:'auto',
+      check: d => d.flight_mode ? 'pass' : 'pending',
+      live: d => d.flight_mode ? `Mode: ${d.flight_mode}` : 'Waiting...' },
+    { id:'c-geofence', label:'Geofence Set',               desc:'Flying area geofence configured in mission planner', type:'manual' },
+    { id:'c-notam',    label:'NOTAM / Airspace Checked',   desc:'Local NOTAMs reviewed, airspace clear', type:'manual' },
+    { id:'c-weather',  label:'Weather Assessment Done',    desc:'Wind speed, gusts, precipitation, visibility checked', type:'manual' },
+    { id:'c-area',     label:'Flight Area Clear',          desc:'No people, obstacles or hazards in takeoff zone', type:'manual' },
+    { id:'c-arm-test', label:'Arm / Disarm Test',          desc:'Test arm and immediately disarm before final takeoff', type:'manual' },
+    { id:'c-cpu',      label:'CPU Load Nominal',           desc:'Flight controller CPU load below 80%', type:'auto',
+      check: d => d.cpu != null ? (d.cpu < 60 ? 'pass' : d.cpu < 80 ? 'warn' : 'fail') : 'pending',
+      live: d => d.cpu != null ? `${Math.round(d.cpu)}% load` : '--' },
+    { id:'c-pilot',    label:'Pilot Briefing Complete',    desc:'Emergency procedures reviewed, roles assigned', type:'manual' },
+  ],
+};
+
+// ── Item state store ─────────────────────────────────────
+const states = {};
+Object.values(CHECKS).flat().forEach(c => { states[c.id] = 'pending'; });
+
+// ── Render ───────────────────────────────────────────────
+function stateIcon(state) {
+  return { pass:'✓', fail:'✗', warn:'!', skip:'–', pending:'' }[state] || '';
+}
+function cbClass(item, state) {
+  if (item.type === 'auto') {
+    return { pass:'auto-pass', fail:'auto-fail', warn:'auto-warn', pending:'', skip:'skip' }[state] || '';
+  }
+  return { pass:'pass', fail:'fail', warn:'warn', skip:'skip', pending:'' }[state] || '';
+}
+
+function renderColumn(colId, items) {
+  const container = el('col-' + colId);
+  if (!container) return;
+  container.innerHTML = '';
+  items.forEach(item => {
+    const state = states[item.id] || 'pending';
+    const div = document.createElement('div');
+    div.className = 'check-item' + (item.type === 'auto' ? ' auto' : '');
+    div.id = 'item-' + item.id;
+    div.innerHTML = `
+      <div class="cb ${cbClass(item, state)}" id="cb-${item.id}">
+        <span class="cb-icon">${stateIcon(state)}</span>
+      </div>
+      <div class="check-content">
+        <div class="check-label">${item.label}<span class="check-tag ${item.type === 'auto' ? 'tag-auto' : 'tag-manual'}">${item.type === 'auto' ? 'AUTO' : 'MANUAL'}</span></div>
+        <div class="check-desc">${item.desc}</div>
+        ${item.type === 'auto' ? `<div class="check-live" id="live-${item.id}">--</div>` : ''}
+      </div>`;
+    if (item.type === 'manual') {
+      div.addEventListener('click', () => cycleManual(item.id));
+    }
+    container.appendChild(div);
+  });
+}
+
+function cycleManual(id) {
+  const current = states[id];
+  const cycle = { pending:'pass', pass:'warn', warn:'fail', fail:'skip', skip:'pending' };
+  states[id] = cycle[current] || 'pending';
+  updateCounts();
+  const item = Object.values(CHECKS).flat().find(c => c.id === id);
+  const colId = Object.keys(CHECKS).find(k => CHECKS[k].some(c => c.id === id));
+  if (item && colId) renderColumn(colId, CHECKS[colId]);
+}
+
+// ── Update from telemetry ────────────────────────────────
+function updateAuto(data) {
+  Object.values(CHECKS).flat().forEach(item => {
+    if (item.type !== 'auto') return;
+    const newState = item.check(data);
+    states[item.id] = newState;
+    const cb = el('cb-' + item.id);
+    if (cb) {
+      cb.className = 'cb ' + cbClass(item, newState);
+      cb.querySelector('.cb-icon').textContent = stateIcon(newState);
+    }
+    const liveEl = el('live-' + item.id);
+    if (liveEl && item.live) liveEl.textContent = item.live(data);
+  });
+  updateCounts();
+  updateStatusBar(data);
+}
+
+function updateCounts() {
+  let pass=0, fail=0, warn=0, skip=0, pending=0, autoPass=0;
+  Object.values(CHECKS).flat().forEach(item => {
+    const s = states[item.id];
+    if (s==='pass'){pass++; if(item.type==='auto')autoPass++;}
+    else if (s==='fail') fail++;
+    else if (s==='warn') warn++;
+    else if (s==='skip') skip++;
+    else pending++;
+  });
+  const total = pass+fail+warn+skip+pending;
+  el('hPass').textContent = pass;
+  el('hFail').textContent = fail;
+  el('hRemain').textContent = pending + warn;
+  el('s-pass').textContent = pass;
+  el('s-fail').textContent = fail;
+  el('s-warn').textContent = warn;
+  el('s-skip').textContent = skip;
+  el('s-remain').textContent = pending;
+  el('s-auto').textContent = autoPass;
+
+  // Column counts
+  Object.keys(CHECKS).forEach(k => {
+    const items = CHECKS[k];
+    const p = items.filter(i => states[i.id]==='pass').length;
+    el('cnt-'+k).textContent = `${p}/${items.length}`;
+  });
+
+  // Verdict
+  const v = el('verdict');
+  if (fail > 0)         { v.className='verdict nogo'; v.textContent='NO-GO'; }
+  else if (pending > 0 || warn > 0) { v.className='verdict hold'; v.textContent='HOLD'; }
+  else                  { v.className='verdict go';   v.textContent='GO'; }
+}
+
+function updateStatusBar(d) {
+  function set(id, text, color) { const e=el(id); if(e){e.textContent=text;e.style.color=color;} }
+  const batt = d.battery != null ? Math.round(d.battery) : null;
+  set('sb-batt', batt!=null?`${batt}% · ${d.voltage?.toFixed(1)||'--'}V`: '--',
+      batt>50?'var(--green)':batt>25?'var(--amber)':'var(--red)');
+  const gpsOk = d.fix_type && d.fix_type !== 'NO FIX';
+  set('sb-gps', d.fix_type||'--', gpsOk?'var(--green)':'var(--amber)');
+  set('sb-ekf', d.ekf_healthy?'HEALTHY':'DEGRADED', d.ekf_healthy?'var(--green)':'var(--red)');
+  set('sb-rssi', d.rssi!=null?`${d.rssi.toFixed(0)}%`:'--', d.rssi>60?'var(--green)':d.rssi>30?'var(--amber)':'var(--red)');
+  set('sb-alt', d.alt!=null?`${d.alt.toFixed(1)} m`:'--', 'var(--blue)');
+  const vm = d.vib_x!=null ? Math.sqrt(d.vib_x**2+d.vib_y**2+d.vib_z**2) : null;
+  set('sb-vib', vm!=null?(vm<15?'Low':vm<30?'Medium':'High'):'--', vm<15?'var(--green)':vm<30?'var(--amber)':'var(--red)');
+}
+
+// ── Buttons ───────────────────────────────────────────────
+el('btnClearFail').addEventListener('click', () => {
+  Object.values(CHECKS).flat().forEach(item => {
+    if (states[item.id]==='fail') states[item.id]='pending';
+  });
+  Object.keys(CHECKS).forEach(k => renderColumn(k, CHECKS[k]));
+  updateCounts();
+});
+
+el('btnReset').addEventListener('click', () => {
+  Object.values(CHECKS).flat().forEach(item => {
+    if (item.type==='manual') states[item.id]='pending';
+  });
+  Object.keys(CHECKS).forEach(k => renderColumn(k, CHECKS[k]));
+  updateCounts();
+});
+
+el('btnResetHard').addEventListener('click', () => {
+  Object.values(CHECKS).flat().forEach(c => { states[c.id]='pending'; });
+  Object.keys(CHECKS).forEach(k => renderColumn(k, CHECKS[k]));
+  updateCounts();
+});
+
+// ── WebSocket ─────────────────────────────────────────────
+let ws=null;
+function connectWs() {
+  ws=new WebSocket('ws://localhost:8765');
+  ws.onopen=()=>{ el('hTelem').textContent='LINKED'; el('hTelem').className='t-val g'; };
+  ws.onmessage=e=>{ try{updateAuto(JSON.parse(e.data));}catch(err){} };
+  ws.onclose=()=>{ el('hTelem').textContent='OFFLINE'; el('hTelem').className='t-val r'; setTimeout(connectWs,3000); };
+  ws.onerror=()=>{ ws=null; };
+}
+
+// ── Demo ──────────────────────────────────────────────────
+function runDemo() {
+  function rnd(a,b){return Math.random()*(b-a)+a;}
+  el('hTelem').textContent='DEMO'; el('hTelem').className='t-val b';
+  setInterval(()=>{
+    updateAuto({
+      fix_type:'RTK FIX', sats:Math.floor(rnd(16,21)), hdop:rnd(0.5,1.1),
+      lat:33.4136, lon:-111.9196,
+      roll:rnd(-0.03,0.03), pitch:rnd(-0.03,0.03), yaw:2.1,
+      sensors_health:0x201FF, ekf_healthy:true, ekf_compass_variance:rnd(0.01,0.04),
+      alt:rnd(0,0.5), alt_msl:302, climb:0,
+      voltage:rnd(15.5,16.0), current:rnd(4,5), battery:rnd(72,78), cell_voltage:rnd(3.9,4.0),
+      rangefinder:rnd(0.3,0.6), of_quality:rnd(78,95),
+      rssi:rnd(82,90), rc_throttle:1000,
+      vib_x:rnd(0.5,2), vib_y:rnd(0.5,2), vib_z:rnd(1,4),
+      m1:1015, m2:1012, m3:1018, m4:1010, clip_0:0, clip_1:0, clip_2:0,
+      cpu:rnd(28,38), flight_mode:'STABILIZE', armed:false,
+    });
+  }, 1000);
+}
+
+// ── Init ──────────────────────────────────────────────────
+Object.keys(CHECKS).forEach(k => renderColumn(k, CHECKS[k]));
+updateCounts();
+setInterval(()=>el('hClock').textContent=now(), 1000);
+if(isActual) connectWs(); else runDemo();
+</script>
+</body>
+</html>

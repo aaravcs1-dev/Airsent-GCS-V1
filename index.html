@@ -123,7 +123,7 @@
       }
 
       if(username === "actual"){
-        selectedMode = "real";
+        selectedMode = "actual"; // ← FIXED: was "real", now matches all other pages
         return true;
       }
 
@@ -132,7 +132,7 @@
     }
 
     function runBootSequence(){
-      localStorage.setItem("mode", selectedMode);
+      localStorage.setItem("airsentMode", selectedMode); // ← FIXED: was "mode", now "airsentMode"
 
       bootOverlay.classList.remove("hidden");
 
